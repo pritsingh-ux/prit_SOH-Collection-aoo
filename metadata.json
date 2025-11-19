@@ -1,0 +1,5 @@
+{
+  "name": "Brillare- Retail SOH",
+  "description": "A mobile-first web application for Business Development Executives (BDEs) to collect Stock-in-Hand (SOH) data from retailers. The collected data can be easily exported into an Excel file.",
+  "requestFramePermissions": []
+}
