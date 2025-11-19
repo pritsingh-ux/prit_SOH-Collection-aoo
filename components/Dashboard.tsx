@@ -10,12 +10,13 @@ interface DashboardProps {
     onFinishSession: () => void;
     onLogout: () => void;
     onEditAudit: (auditId: string) => void;
+    onDeleteAudit: (auditId: string) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ bdeInfo, sessionAudits, onStartAudit, onFinishSession, onLogout, onEditAudit }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ bdeInfo, sessionAudits, onStartAudit, onFinishSession, onLogout, onEditAudit, onDeleteAudit }) => {
     
     const totalItemsCollected = sessionAudits.reduce((sum, audit) => {
-        return sum + Array.from(audit.stockData.values()).reduce((a, b) => a + b, 0);
+        return sum + Array.from(audit.stockData.values()).reduce((a: number, b: number) => a + b, 0);
     }, 0);
 
     return (
@@ -85,32 +86,54 @@ export const Dashboard: React.FC<DashboardProps> = ({ bdeInfo, sessionAudits, on
                 ) : (
                     <div className="space-y-3">
                         {sessionAudits.map((audit, index) => {
-                            const count = Array.from(audit.stockData.values()).reduce((a, b) => a + b, 0);
+                            const count = Array.from(audit.stockData.values()).reduce((a: number, b: number) => a + b, 0);
                             return (
-                                <div key={audit.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center">
-                                    <div className="flex items-center gap-3">
-                                        <span className="bg-slate-100 text-slate-500 text-xs font-bold h-6 w-6 rounded-full flex items-center justify-center">
+                                <div key={audit.id} className="bg-white p-3 sm:p-4 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center relative z-0">
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <span className="bg-slate-100 text-slate-500 text-xs font-bold h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0">
                                             {index + 1}
                                         </span>
-                                        <div>
-                                            <p className="font-bold text-slate-800">{audit.store.name}</p>
-                                            <p className="text-xs text-slate-400">BSRN: {audit.store.bsrn}</p>
+                                        <div className="truncate pr-2">
+                                            <p className="font-bold text-slate-800 truncate">{audit.store.name}</p>
+                                            <p className="text-xs text-slate-400">Store Id: {audit.store.bsrn}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-right mr-2">
+                                    
+                                    <div className="flex items-center gap-3 flex-shrink-0">
+                                        <div className="text-right hidden sm:block mr-2">
                                             <p className="text-lg font-bold text-indigo-600">{count}</p>
                                             <p className="text-[10px] text-slate-400 uppercase">Units</p>
                                         </div>
-                                        <button 
-                                            onClick={() => onEditAudit(audit.id)}
-                                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                            title="Edit Audit"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                            </svg>
-                                        </button>
+                                        <div className="flex gap-3">
+                                            <button 
+                                                type="button"
+                                                onClick={(e) => { 
+                                                    e.preventDefault(); 
+                                                    e.stopPropagation(); 
+                                                    onEditAudit(audit.id); 
+                                                }}
+                                                className="w-12 h-12 flex items-center justify-center bg-indigo-100 text-indigo-600 rounded-xl hover:bg-indigo-200 hover:text-indigo-700 active:scale-95 transition-all cursor-pointer shadow-sm z-30"
+                                                title="Edit Audit"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                </svg>
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                onClick={(e) => { 
+                                                    e.preventDefault(); 
+                                                    e.stopPropagation(); 
+                                                    onDeleteAudit(audit.id); 
+                                                }}
+                                                className="w-12 h-12 flex items-center justify-center bg-red-50 text-red-400 rounded-xl hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all cursor-pointer shadow-sm z-30"
+                                                title="Delete Audit"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             );

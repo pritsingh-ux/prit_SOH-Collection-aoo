@@ -18,7 +18,7 @@ export const exportToExcel = (bdeInfo: BdeInfo, sessionAudits: StoreAudit[], all
                 'BDE Name': bdeInfo.bdeName,
                 'Region': bdeInfo.region,
                 'Store Name': audit.store.name,
-                'BSRN (Store ID)': audit.store.bsrn,
+                'Store Id': audit.store.bsrn,
                 'Product Code': skuId,
                 'Product Name': sku?.name || 'N/A',
                 'Category': sku?.category || 'N/A',
@@ -44,7 +44,7 @@ export const exportToExcel = (bdeInfo: BdeInfo, sessionAudits: StoreAudit[], all
     { wch: 20 }, // BDE Name
     { wch: 15 }, // Region
     { wch: 25 }, // Store Name
-    { wch: 15 }, // BSRN
+    { wch: 15 }, // Store Id
     { wch: 15 }, // Product Code
     { wch: 40 }, // Product Name
     { wch: 15 }, // Category

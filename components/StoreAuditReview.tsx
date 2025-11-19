@@ -12,9 +12,10 @@ interface StoreAuditReviewProps {
 }
 
 export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stockData, allSkus, onConfirm, onEdit }) => {
-    const totalCount = Array.from(stockData.values()).reduce((a, b) => a + b, 0);
+    const totalCount = Array.from(stockData.values()).reduce((a: number, b: number) => a + b, 0);
     const filledSkus = Array.from(stockData.entries()).filter(([, count]) => count > 0);
-    const skuMap = new Map(allSkus.map(s => [s.id, s]));
+    // Explicitly type the Map to ensure TS knows values are Sku
+    const skuMap = new Map<string, Sku>(allSkus.map(s => [s.id, s]));
 
     return (
         <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-fade-in">

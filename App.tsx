@@ -31,6 +31,13 @@ const App: React.FC = () => {
   const activeSkus = useMemo(() => [...ALL_SKUS, ...customSkus], [customSkus]);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Delete Modal State
+  const [deleteModalState, setDeleteModalState] = useState<{isOpen: boolean, auditId: string | null, storeName: string}>({
+      isOpen: false,
+      auditId: null,
+      storeName: ''
+  });
+
   // --- CRASH RECOVERY LOGIC ---
   
   // 1. Load State on Mount
@@ -93,9 +100,12 @@ const App: React.FC = () => {
       };
 
       if (hasData) {
-          if (window.confirm("Ending session will clear all collected data. Are you sure you want to exit?")) {
-              performLogout();
-          }
+          // Use setTimeout to ensure confirm works on mobile touch events
+          setTimeout(() => {
+            if (window.confirm("Ending session will clear all collected data. Are you sure you want to exit?")) {
+                performLogout();
+            }
+          }, 50);
       } else {
           performLogout();
       }
@@ -111,17 +121,48 @@ const App: React.FC = () => {
   };
   
   const handleEditSessionAudit = (auditId: string) => {
-      const auditToEdit = sessionAudits.find(a => a.id === auditId);
+      console.log("App: Edit requested for", auditId);
+      // Robust ID check: convert both to string to avoid number/string mismatch issues
+      const auditToEdit = sessionAudits.find(a => String(a.id) === String(auditId));
+      
       if (auditToEdit) {
-          if(window.confirm(`Re-open audit for ${auditToEdit.store.name}? This will remove it from the completed list so you can edit it.`)) {
-              // Remove from completed list
-              setSessionAudits(prev => prev.filter(a => a.id !== auditId));
-              
-              // Load into active state
-              setCurrentStore(auditToEdit.store);
-              setCurrentStockData(auditToEdit.stockData);
-              setStep('STOCK_ENTRY');
-          }
+          // INSTANT EDIT: Removed confirmation dialog to make UI more responsive
+          // Remove from completed list
+          setSessionAudits(prev => prev.filter(a => String(a.id) !== String(auditId)));
+          
+          // Load into active state
+          setCurrentStore(auditToEdit.store);
+          // Create a DEEP COPY of the map to ensure editability
+          setCurrentStockData(new Map(auditToEdit.stockData));
+          setStep('STOCK_ENTRY');
+      } else {
+          console.error("Audit not found with ID:", auditId);
+          alert("Error: Could not load audit for editing.");
+      }
+  };
+
+  const handleDeleteSessionAudit = (auditId: string) => {
+      console.log("App: Delete requested for", auditId);
+      
+      // Robust ID check
+      const auditToDelete = sessionAudits.find(a => String(a.id) === String(auditId));
+      
+      if (auditToDelete) {
+          // Open Custom Modal instead of window.confirm
+          setDeleteModalState({
+              isOpen: true,
+              auditId: auditId,
+              storeName: auditToDelete.store.name
+          });
+      } else {
+           console.error("Audit not found with ID:", auditId);
+      }
+  };
+  
+  const confirmDeleteAudit = () => {
+      if (deleteModalState.auditId) {
+          setSessionAudits(prev => prev.filter(a => String(a.id) !== String(deleteModalState.auditId)));
+          setDeleteModalState({ isOpen: false, auditId: null, storeName: '' });
       }
   };
 
@@ -197,6 +238,7 @@ const App: React.FC = () => {
                 onFinishSession={handleFinishSession}
                 onLogout={handleLogout}
                 onEditAudit={handleEditSessionAudit}
+                onDeleteAudit={handleDeleteSessionAudit}
             />
         );
       
@@ -206,6 +248,7 @@ const App: React.FC = () => {
                 bdeName={bdeInfo.bdeName}
                 onSelectStore={handleStoreSelected}
                 onBack={handleBackToDashboard}
+                auditedStoreIds={sessionAudits.map(a => a.store.id)}
             />
         );
 
@@ -246,6 +289,7 @@ const App: React.FC = () => {
             allSkus={activeSkus}
             onExport={handleExport}
             onContinueSession={handleContinueSession}
+            onHome={handleLogout}
           />
         );
       default:
@@ -254,11 +298,42 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 relative">
       <Header />
       <main className="p-3 sm:p-6 pb-24 max-w-4xl mx-auto">
         {renderStep()}
       </main>
+      
+      {/* Custom Delete Confirmation Modal */}
+      {deleteModalState.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fade-in">
+            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 transform transition-all scale-100">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                    <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h3 className="text-lg font-bold text-center text-slate-900 mb-2">Delete Audit?</h3>
+                <p className="text-sm text-center text-slate-500 mb-6">
+                    Are you sure you want to remove the audit for <span className="font-bold text-slate-800">{deleteModalState.storeName}</span>? This cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                    <button 
+                        onClick={() => setDeleteModalState({isOpen: false, auditId: null, storeName: ''})}
+                        className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-slate-200 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={confirmDeleteAudit}
+                        className="flex-1 px-4 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
+                    >
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

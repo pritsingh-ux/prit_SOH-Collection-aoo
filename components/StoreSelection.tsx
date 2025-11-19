@@ -9,9 +9,10 @@ interface StoreSelectionProps {
   bdeName: string;
   onSelectStore: (store: Store) => void;
   onBack: () => void;
+  auditedStoreIds: string[];
 }
 
-export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelectStore, onBack }) => {
+export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelectStore, onBack, auditedStoreIds }) => {
   const [availableStores, setAvailableStores] = useState<Store[]>([]);
   const [isAddingStore, setIsAddingStore] = useState(false);
 
@@ -61,23 +62,46 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
             {!isAddingStore ? (
                 <div className="space-y-4">
                     <div className="grid gap-3">
-                        {availableStores.map(store => (
-                            <button
-                                key={store.id}
-                                onClick={() => onSelectStore(store)}
-                                className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all group text-left"
-                            >
-                                <div>
-                                    <p className="font-bold text-slate-900 group-hover:text-indigo-700">{store.name}</p>
-                                    <p className="text-sm text-slate-500">BSRN: {store.bsrn}</p>
-                                </div>
-                                <div className="text-slate-300 group-hover:text-indigo-500">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </div>
-                            </button>
-                        ))}
+                        {availableStores.map(store => {
+                            const isAudited = auditedStoreIds.includes(store.id);
+                            return (
+                                <button
+                                    key={store.id}
+                                    onClick={() => onSelectStore(store)}
+                                    disabled={isAudited}
+                                    className={`flex items-center justify-between p-4 rounded-xl border transition-all group text-left relative overflow-hidden ${
+                                        isAudited 
+                                            ? 'bg-emerald-50 border-emerald-200 opacity-90 cursor-not-allowed' 
+                                            : 'border-slate-200 hover:border-indigo-500 hover:bg-indigo-50'
+                                    }`}
+                                >
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <p className={`font-bold ${isAudited ? 'text-emerald-800' : 'text-slate-900 group-hover:text-indigo-700'}`}>
+                                                {store.name}
+                                            </p>
+                                            {isAudited && (
+                                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wide">
+                                                    Completed
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className={`text-sm ${isAudited ? 'text-emerald-600' : 'text-slate-500'}`}>Store Id: {store.bsrn}</p>
+                                    </div>
+                                    <div className={isAudited ? 'text-emerald-500' : 'text-slate-300 group-hover:text-indigo-500'}>
+                                        {isAudited ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                            </svg>
+                                        ) : (
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        )}
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
                     
                     <div className="pt-4 border-t border-slate-100">
@@ -106,7 +130,7 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
                       />
                       <Input
                         id="bsrn"
-                        label="BSRN (Unique ID)"
+                        label="Store Id (Unique ID)"
                         value={newStoreBsrn}
                         onChange={(e) => setNewStoreBsrn(e.target.value)}
                         placeholder="e.g. ST-10023"

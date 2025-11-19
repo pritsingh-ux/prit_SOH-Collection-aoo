@@ -9,13 +9,14 @@ interface ReviewAndExportProps {
   allSkus: Sku[];
   onExport: () => void;
   onContinueSession: () => void;
+  onHome: () => void;
 }
 
-export const ReviewAndExport: React.FC<ReviewAndExportProps> = ({ bdeInfo, sessionAudits, allSkus, onExport, onContinueSession }) => {
+export const ReviewAndExport: React.FC<ReviewAndExportProps> = ({ bdeInfo, sessionAudits, allSkus, onExport, onContinueSession, onHome }) => {
   
   const totalStores = sessionAudits.length;
   const totalUnits = sessionAudits.reduce((sum, audit) => {
-      return sum + Array.from(audit.stockData.values()).reduce((a,b) => a + b, 0);
+      return sum + Array.from(audit.stockData.values()).reduce((a: number, b: number) => a + b, 0);
   }, 0);
 
   const handleEmail = () => {
@@ -57,7 +58,7 @@ export const ReviewAndExport: React.FC<ReviewAndExportProps> = ({ bdeInfo, sessi
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
                         {sessionAudits.map(audit => {
-                            const qty = Array.from(audit.stockData.values()).reduce((a,b) => a + b, 0);
+                            const qty = Array.from(audit.stockData.values()).reduce((a: number, b: number) => a + b, 0);
                             return (
                                 <tr key={audit.id}>
                                     <td className="px-4 py-3 text-sm text-slate-800 font-medium">
@@ -73,27 +74,46 @@ export const ReviewAndExport: React.FC<ReviewAndExportProps> = ({ bdeInfo, sessi
         </div>
 
         {/* Actions */}
-        <div className="space-y-3 pt-4 border-t border-slate-100">
-          <Button onClick={onExport} disabled={sessionAudits.length === 0} className="shadow-lg shadow-indigo-200">
-              1. Download Compiled Excel
-          </Button>
-          <Button 
-            onClick={handleEmail} 
-            disabled={sessionAudits.length === 0} 
-            variant="secondary" 
-            className="border border-slate-300"
-          >
-             2. Email Report to HO
-          </Button>
-          
-          <div className="mt-4">
-             <button 
+        <div className="space-y-4 pt-4 border-t border-slate-100">
+            {/* Option 1: Download */}
+            <Button onClick={onExport} disabled={sessionAudits.length === 0} className="shadow-lg shadow-indigo-200 py-4">
+                <div className="flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                    1. Download Compiled Report
+                </div>
+            </Button>
+            
+            {/* Option 2: Back to Audit */}
+            <Button 
                 onClick={onContinueSession}
-                className="w-full py-3 text-indigo-600 font-medium hover:bg-indigo-50 rounded-lg transition-colors"
-             >
-                ← Return to Dashboard (Add more stores)
-             </button>
-          </div>
+                variant="secondary"
+                className="border-2 border-indigo-600 text-indigo-700 bg-white hover:bg-indigo-50 font-bold py-3"
+            >
+                2. Back to Audit (Add more stores)
+            </Button>
+            
+            {/* Option 3: Email */}
+            <button 
+                onClick={handleEmail} 
+                disabled={sessionAudits.length === 0} 
+                className="w-full py-3 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                </svg>
+                3. Email Report to HO (Optional)
+            </button>
+
+            {/* Option 4: Homepage */}
+             <button 
+                onClick={onHome}
+                className="w-full py-3 text-red-500 font-medium hover:bg-red-50 rounded-lg transition-colors text-sm mt-2"
+            >
+                4. Homepage
+            </button>
         </div>
       </div>
     </div>
