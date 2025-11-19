@@ -16,7 +16,13 @@ export interface Store {
 export interface BdeInfo {
   bdeName: string;
   region: string;
-  store: Store;
 }
 
 export type StockData = Map<string, number>;
+
+export interface StoreAudit {
+  id: string;
+  store: Store;
+  stockData: StockData;
+  timestamp: number;
+}

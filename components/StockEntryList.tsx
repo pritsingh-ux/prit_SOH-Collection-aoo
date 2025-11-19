@@ -51,7 +51,7 @@ const SkuItem: React.FC<{ sku: Sku; count: number; onCountChange: (newCount: num
                     value={count === 0 ? '' : count}
                     onChange={handleInputChange}
                     placeholder="0"
-                    className="w-12 text-center font-bold text-lg text-indigo-700 border-x border-slate-200 focus:outline-none focus:bg-indigo-50 h-full"
+                    className="w-12 text-center font-bold text-lg text-slate-900 bg-white border-x border-slate-200 focus:outline-none focus:bg-indigo-50 h-full"
                 />
                 <button 
                   onClick={increment} 
@@ -90,32 +90,27 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
         const newSku: Sku = {
             id: newItemCode.toUpperCase(),
             name: newItemName,
-            type: 'Custom', // Generic type for user added
+            type: 'Custom', 
             category: 'Other'
         };
         onAddSku(newSku);
         
-        // Reset and close
         setNewItemName('');
         setNewItemCode('');
         setIsAddModalOpen(false);
         
-        // Switch view to see it immediately
         setActiveCategory('Other'); 
         setSearchTerm(newItemCode.toUpperCase());
     }
   };
 
-  // Filter logic
   const filteredSkus = useMemo(() => {
     let skus = availableSkus;
 
-    // 1. Filter by Category
     if (activeCategory !== 'All') {
       skus = skus.filter(sku => sku.category === activeCategory);
     }
 
-    // 2. Filter by Search
     if (searchTerm) {
       const lowerTerm = searchTerm.toLowerCase();
       skus = skus.filter(sku =>
@@ -130,12 +125,10 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
   const totalItems = Array.from(stockData.values()).reduce((sum: number, count: number) => sum + count, 0);
   const itemsFilled = Array.from(stockData.values()).filter((count: number) => count > 0).length;
   
-  // Categories including 'Other' if needed
   const dynamicCategories = [...SKU_CATEGORIES, 'Other'];
 
   return (
     <div className="animate-fade-in pb-20 relative">
-        {/* Modal for Adding Item */}
         {isAddModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
                 <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-fade-in">
@@ -169,26 +162,34 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
             </div>
         )}
 
-        {/* Header Section */}
-        <div className="sticky top-0 bg-slate-100 z-20 pb-2">
-             <div className="bg-white shadow-sm p-4 rounded-b-xl mb-3">
+        <div className="sticky top-0 bg-slate-50 z-20 pb-2">
+             <div className="bg-white shadow-sm p-4 rounded-b-xl mb-3 border-b border-slate-100">
                <div className="flex items-center gap-3 mb-3">
                  <button 
                     onClick={onBack}
                     className="p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
-                    aria-label="Go Back"
+                    aria-label="Cancel"
                  >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                  </button>
                  <div className="flex-1">
-                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Store Audit</p>
-                   <h2 className="text-xl font-bold text-slate-800 leading-tight">{retailerName}</h2>
+                   <div className="flex items-center gap-1">
+                       <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Audit In Progress</p>
+                       <span className="text-emerald-600">•</span>
+                       <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
+                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                           <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                         </svg>
+                         Auto-saved
+                       </span>
+                   </div>
+                   <h2 className="text-xl font-bold text-slate-800 leading-tight truncate">{retailerName}</h2>
                  </div>
                  <div className="text-right min-w-fit pl-2">
                     <span className="block text-2xl font-bold text-indigo-600 leading-none">{itemsFilled}</span>
-                    <span className="text-xs text-slate-500">SKUs Filled</span>
+                    <span className="text-xs text-slate-500">SKUs</span>
                  </div>
                </div>
                
@@ -201,7 +202,7 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
                      </div>
                      <input
                         type="text"
-                        placeholder="Search..."
+                        placeholder="Search items..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white text-slate-900 transition-all"
@@ -211,12 +212,11 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
                      onClick={() => setIsAddModalOpen(true)}
                      className="bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg font-medium text-sm hover:bg-indigo-100 whitespace-nowrap"
                    >
-                     + New Item
+                     + New
                    </button>
                </div>
              </div>
 
-             {/* Category Tabs */}
              <div className="flex overflow-x-auto pb-1 px-2 gap-2 no-scrollbar" style={{ scrollbarWidth: 'none' }}>
                {dynamicCategories.map(cat => (
                  <button
@@ -234,7 +234,6 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
              </div>
         </div>
       
-        {/* List Section */}
         <div className="mt-2 px-2 space-y-2">
             {filteredSkus.length > 0 ? (
               filteredSkus.map(sku => (
@@ -253,16 +252,15 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
             )}
         </div>
 
-        {/* Bottom Action Bar */}
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30">
            <div className="max-w-4xl mx-auto flex gap-4 items-center">
              <div className="flex-1">
-                <p className="text-xs text-slate-500">Total Quantity</p>
+                <p className="text-xs text-slate-500">Total Qty</p>
                 <p className="text-xl font-bold text-indigo-900">{totalItems}</p>
              </div>
              <div className="flex-1">
                 <Button onClick={() => onSubmit(stockData)}>
-                    Review & Finish
+                    Finish Store
                 </Button>
              </div>
            </div>
