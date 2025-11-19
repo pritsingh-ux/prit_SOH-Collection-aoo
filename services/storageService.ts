@@ -81,29 +81,38 @@ export const loadSessionState = (): {
         
         const data: SessionState = JSON.parse(raw);
         
-        // Rehydrate Map
-        const stockMap = new Map<string, number>(data.currentStockData);
+        // 1. Rehydrate Current Stock Data
+        // It is stored as an array of tuples [[id, count], ...]. New Map(array) works perfectly.
+        let currentStockMap = new Map<string, number>();
+        if (Array.isArray(data.currentStockData)) {
+             currentStockMap = new Map(data.currentStockData);
+        }
 
-        // Rehydrate Audits (Maps inside objects)
-        const hydratedAudits = data.sessionAudits.map(audit => ({
-            ...audit,
-            stockData: new Map(audit.stockData as any) // Handling the serialized map in audits if necessary, though usually we serialize before saving
-        }));
-        
-        // Fix for audits: The StockData in audits is also a Map, which JSON.stringify converts to {} or needs manual handling.
-        // In App.tsx we keep it as Map. When saving, we need to ensure audit.stockData is serializable.
-        // NOTE: For simplicity in this architecture, we will assume sessionAudits in localStorage 
-        // are stored with stockData as Array entries (serialization logic handles this below).
+        // 2. Rehydrate Session Audits
+        // The audit.stockData inside sessionAudits was serialized to an array in serializeState
+        const hydratedAudits = data.sessionAudits.map(audit => {
+            let auditStockMap = new Map<string, number>();
+            
+            if (Array.isArray(audit.stockData)) {
+                // Standard case: it's an array of tuples
+                auditStockMap = new Map(audit.stockData as any);
+            } else if (typeof audit.stockData === 'object' && audit.stockData !== null) {
+                // Fallback case: if it was somehow saved as a plain object
+                auditStockMap = new Map(Object.entries(audit.stockData));
+            }
+
+            return {
+                ...audit,
+                stockData: auditStockMap
+            };
+        });
         
         return {
             step: data.step,
             bdeInfo: data.bdeInfo,
-            sessionAudits: hydratedAudits.map(a => ({
-                ...a,
-                stockData: Array.isArray(a.stockData) ? new Map(a.stockData) : new Map(Object.entries(a.stockData || {}))
-            })),
+            sessionAudits: hydratedAudits,
             currentStore: data.currentStore,
-            currentStockData: stockMap,
+            currentStockData: currentStockMap,
             customSkus: data.customSkus || []
         };
     } catch (e) {
