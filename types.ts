@@ -1,4 +1,6 @@
 
+export type UserRole = 'BDE' | 'BA';
+
 export interface Sku {
   id: string;
   name: string;
@@ -16,6 +18,7 @@ export interface Store {
 export interface BdeInfo {
   bdeName: string;
   region: string;
+  role: UserRole;
 }
 
 export type StockData = Map<string, number>;

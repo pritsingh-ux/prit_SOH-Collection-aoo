@@ -1,10 +1,10 @@
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Header } from './components/common/Header';
 import { exportToExcel } from './services/excelService';
 import type { BdeInfo, StockData, Sku, Store, StoreAudit } from './types';
 import { ALL_SKUS } from './constants';
 import { serializeState, loadSessionState, clearSessionState } from './services/storageService';
+import { parseShareCode } from './services/shareService';
 
 // Components
 import { BdeInfoForm } from './components/BdeInfoForm';
@@ -13,6 +13,8 @@ import { StoreSelection } from './components/StoreSelection';
 import { StockEntryList } from './components/StockEntryList';
 import { StoreAuditReview } from './components/StoreAuditReview';
 import { ReviewAndExport } from './components/ReviewAndExport';
+import { Input } from './components/common/Input';
+import { Button } from './components/common/Button';
 
 type AppStep = 'BDE_LOGIN' | 'DASHBOARD' | 'STORE_SELECT' | 'STOCK_ENTRY' | 'REVIEW_SINGLE' | 'REVIEW_SESSION';
 
@@ -31,20 +33,20 @@ const App: React.FC = () => {
   const activeSkus = useMemo(() => [...ALL_SKUS, ...customSkus], [customSkus]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Delete Modal State
+  // Modals
   const [deleteModalState, setDeleteModalState] = useState<{isOpen: boolean, auditId: string | null, storeName: string}>({
       isOpen: false,
       auditId: null,
       storeName: ''
   });
+  
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importCode, setImportCode] = useState('');
 
   // --- CRASH RECOVERY LOGIC ---
-  
-  // 1. Load State on Mount
   useEffect(() => {
       const saved = loadSessionState();
       if (saved && saved.bdeInfo) {
-          // Restore state
           setBdeInfo(saved.bdeInfo);
           setSessionAudits(saved.sessionAudits);
           setCurrentStore(saved.currentStore);
@@ -56,22 +58,18 @@ const App: React.FC = () => {
       setIsLoaded(true);
   }, []);
 
-  // 2. Auto-Save on Change
   useEffect(() => {
       if (!isLoaded) return;
-      
-      // Only save if we have a logged-in session
       if (bdeInfo) {
           serializeState(step, bdeInfo, sessionAudits, currentStore, currentStockData, customSkus);
       }
   }, [step, bdeInfo, sessionAudits, currentStore, currentStockData, customSkus, isLoaded]);
 
-  // 3. Prevent accidental close
   useEffect(() => {
       const handleBeforeUnload = (e: BeforeUnloadEvent) => {
           if (bdeInfo && (sessionAudits.length > 0 || currentStockData.size > 0)) {
               e.preventDefault();
-              e.returnValue = ''; // Chrome requires this
+              e.returnValue = ''; 
           }
       };
       window.addEventListener('beforeunload', handleBeforeUnload);
@@ -81,7 +79,6 @@ const App: React.FC = () => {
 
   // --- HANDLERS ---
 
-  // 1. Login
   const handleLogin = (info: BdeInfo) => {
     setBdeInfo(info);
     setStep('DASHBOARD');
@@ -89,18 +86,16 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
       const hasData = sessionAudits.length > 0;
-      
       const performLogout = () => {
           setBdeInfo(null);
           setSessionAudits([]);
           setCurrentStockData(new Map());
           setCurrentStore(null);
           setStep('BDE_LOGIN');
-          clearSessionState(); // WIPE DATA
+          clearSessionState(); 
       };
 
       if (hasData) {
-          // Use setTimeout to ensure confirm works on mobile touch events
           setTimeout(() => {
             if (window.confirm("Ending session will clear all collected data. Are you sure you want to exit?")) {
                 performLogout();
@@ -111,7 +106,6 @@ const App: React.FC = () => {
       }
   };
 
-  // 2. Dashboard Actions
   const handleStartAudit = () => {
       setStep('STORE_SELECT');
   };
@@ -122,17 +116,10 @@ const App: React.FC = () => {
   
   const handleEditSessionAudit = (auditId: string) => {
       console.log("App: Edit requested for", auditId);
-      // Robust ID check: convert both to string to avoid number/string mismatch issues
       const auditToEdit = sessionAudits.find(a => String(a.id) === String(auditId));
-      
       if (auditToEdit) {
-          // INSTANT EDIT: Removed confirmation dialog to make UI more responsive
-          // Remove from completed list
           setSessionAudits(prev => prev.filter(a => String(a.id) !== String(auditId)));
-          
-          // Load into active state
           setCurrentStore(auditToEdit.store);
-          // Create a DEEP COPY of the map to ensure editability
           setCurrentStockData(new Map(auditToEdit.stockData));
           setStep('STOCK_ENTRY');
       } else {
@@ -142,20 +129,13 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSessionAudit = (auditId: string) => {
-      console.log("App: Delete requested for", auditId);
-      
-      // Robust ID check
       const auditToDelete = sessionAudits.find(a => String(a.id) === String(auditId));
-      
       if (auditToDelete) {
-          // Open Custom Modal instead of window.confirm
           setDeleteModalState({
               isOpen: true,
               auditId: auditId,
               storeName: auditToDelete.store.name
           });
-      } else {
-           console.error("Audit not found with ID:", auditId);
       }
   };
   
@@ -165,11 +145,37 @@ const App: React.FC = () => {
           setDeleteModalState({ isOpen: false, auditId: null, storeName: '' });
       }
   };
+  
+  // --- IMPORT LOGIC ---
+  const handleImportAudit = () => {
+      setIsImportModalOpen(true);
+  };
+  
+  const confirmImport = () => {
+      if (!importCode) return;
+      
+      const result = parseShareCode(importCode);
+      if (result) {
+          const newAudit: StoreAudit = {
+              id: Date.now().toString(),
+              store: result.store,
+              stockData: result.stockData,
+              timestamp: Date.now()
+          };
+          
+          setSessionAudits(prev => [...prev, newAudit]);
+          setIsImportModalOpen(false);
+          setImportCode('');
+          alert(`Successfully imported audit for ${result.store.name}`);
+      } else {
+          alert("Invalid Code. Please ask the BA to share the code again.");
+      }
+  };
 
-  // 3. Store Selection
+  // --- STORE FLOW ---
   const handleStoreSelected = (store: Store) => {
       setCurrentStore(store);
-      setCurrentStockData(new Map()); // Reset for new store
+      setCurrentStockData(new Map()); 
       setStep('STOCK_ENTRY');
   };
 
@@ -177,7 +183,6 @@ const App: React.FC = () => {
       setStep('DASHBOARD');
   };
 
-  // 4. Stock Entry
   const handleStockSubmit = (data: StockData) => {
       setCurrentStockData(data);
       setStep('REVIEW_SINGLE');
@@ -187,7 +192,6 @@ const App: React.FC = () => {
     setCustomSkus(prev => [...prev, newSku]);
   };
 
-  // 5. Single Store Review
   const handleConfirmStoreAudit = () => {
       if (currentStore && bdeInfo) {
           const newAudit: StoreAudit = {
@@ -210,7 +214,6 @@ const App: React.FC = () => {
       setStep('STOCK_ENTRY');
   };
 
-  // 6. Session Export
   const handleExport = useCallback(() => {
     if (bdeInfo) {
       exportToExcel(bdeInfo, sessionAudits, activeSkus);
@@ -239,6 +242,7 @@ const App: React.FC = () => {
                 onLogout={handleLogout}
                 onEditAudit={handleEditSessionAudit}
                 onDeleteAudit={handleDeleteSessionAudit}
+                onImportAudit={handleImportAudit}
             />
         );
       
@@ -271,13 +275,14 @@ const App: React.FC = () => {
         );
         
       case 'REVIEW_SINGLE':
-        return currentStore && (
+        return currentStore && bdeInfo && (
             <StoreAuditReview 
                 store={currentStore}
                 stockData={currentStockData}
                 allSkus={activeSkus}
                 onConfirm={handleConfirmStoreAudit}
                 onEdit={handleEditCurrentStore}
+                userRole={bdeInfo.role}
             />
         );
 
@@ -304,32 +309,60 @@ const App: React.FC = () => {
         {renderStep()}
       </main>
       
-      {/* Custom Delete Confirmation Modal */}
+      {/* Delete Modal */}
       {deleteModalState.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fade-in">
-            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 transform transition-all scale-100">
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                    <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                </div>
+            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
                 <h3 className="text-lg font-bold text-center text-slate-900 mb-2">Delete Audit?</h3>
                 <p className="text-sm text-center text-slate-500 mb-6">
-                    Are you sure you want to remove the audit for <span className="font-bold text-slate-800">{deleteModalState.storeName}</span>? This cannot be undone.
+                    Remove <span className="font-bold">{deleteModalState.storeName}</span>?
                 </p>
                 <div className="flex gap-3">
                     <button 
                         onClick={() => setDeleteModalState({isOpen: false, auditId: null, storeName: ''})}
-                        className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-slate-200 transition-colors"
+                        className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg"
                     >
                         Cancel
                     </button>
                     <button 
                         onClick={confirmDeleteAudit}
-                        className="flex-1 px-4 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
+                        className="flex-1 px-4 py-2 bg-red-600 text-white font-bold rounded-lg"
                     >
                         Delete
                     </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fade-in">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Import Audit Code</h3>
+                <p className="text-sm text-slate-500 mb-4">Paste the code shared by the Beauty Advisor via WhatsApp.</p>
+                
+                <textarea 
+                    className="w-full h-32 p-3 border border-slate-300 rounded-lg text-xs font-mono mb-4 focus:ring-2 focus:ring-purple-500"
+                    placeholder="Paste code here..."
+                    value={importCode}
+                    onChange={(e) => setImportCode(e.target.value)}
+                ></textarea>
+
+                <div className="flex gap-3">
+                     <button 
+                        onClick={() => setIsImportModalOpen(false)}
+                        className="flex-1 px-4 py-3 bg-slate-100 text-slate-700 font-bold rounded-lg"
+                    >
+                        Cancel
+                    </button>
+                    <Button 
+                        onClick={confirmImport}
+                        disabled={!importCode}
+                        className="flex-1 bg-purple-600 hover:bg-purple-700"
+                    >
+                        Import Data
+                    </Button>
                 </div>
             </div>
         </div>
