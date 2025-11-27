@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Header } from './components/common/Header';
 import { exportToExcel } from './services/excelService';
@@ -283,6 +284,7 @@ const App: React.FC = () => {
                 onConfirm={handleConfirmStoreAudit}
                 onEdit={handleEditCurrentStore}
                 userRole={bdeInfo.role}
+                onHome={handleLogout}
             />
         );
 

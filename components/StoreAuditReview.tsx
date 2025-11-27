@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Store, StockData, Sku, UserRole } from '../types';
 import { Button } from './common/Button';
@@ -9,10 +10,11 @@ interface StoreAuditReviewProps {
     allSkus: Sku[];
     onConfirm: () => void;
     onEdit: () => void;
-    userRole: UserRole; // To toggle features
+    userRole: UserRole; 
+    onHome: () => void;
 }
 
-export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stockData, allSkus, onConfirm, onEdit, userRole }) => {
+export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stockData, allSkus, onConfirm, onEdit, userRole, onHome }) => {
     const totalCount = Array.from(stockData.values()).reduce((a: number, b: number) => a + b, 0);
     const filledSkus = Array.from(stockData.entries()).filter(([, count]) => count > 0);
     const skuMap = new Map<string, Sku>(allSkus.map(s => [s.id, s]));
@@ -94,12 +96,19 @@ export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stock
                             >
                                 {isCopied ? 'Copied to Clipboard!' : 'Copy Code (For manual sharing)'}
                             </button>
+                            
+                             <Button onClick={onEdit} variant="secondary">
+                                Edit Entries
+                             </Button>
+
+                             <button 
+                                onClick={onHome}
+                                className="w-full py-3 text-red-500 font-medium hover:bg-red-50 rounded-lg transition-colors text-sm mt-2 border border-transparent hover:border-red-100"
+                            >
+                                Back to Homepage
+                            </button>
                          </div>
                      )}
-                     
-                     <Button onClick={onEdit} variant="secondary">
-                        Edit Entries
-                     </Button>
                  </div>
             </div>
         </div>
