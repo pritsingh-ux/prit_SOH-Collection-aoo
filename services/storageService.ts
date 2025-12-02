@@ -43,6 +43,21 @@ export const addStoreForBde = (bdeName: string, store: Store): void => {
   }
 };
 
+export const removeStoreForBde = (bdeName: string, storeId: string): void => {
+  try {
+    const storedData = localStorage.getItem(STORAGE_KEY);
+    if (!storedData) return;
+    const map: BdeStoreMap = JSON.parse(storedData);
+    
+    if (map[bdeName]) {
+      map[bdeName] = map[bdeName].filter(s => s.id !== storeId);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+    }
+  } catch (e) {
+    console.error("Failed to remove store", e);
+  }
+};
+
 // --- Crash Recovery / Session State ---
 
 export interface SessionState {
