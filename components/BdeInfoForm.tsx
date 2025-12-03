@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { BdeInfo, UserRole } from '../types';
 import { BDE_DETAILS } from '../constants';
@@ -6,9 +7,10 @@ import { Input } from './common/Input';
 
 interface BdeInfoFormProps {
   onSubmit: (info: BdeInfo) => void;
+  onAdminClick?: () => void;
 }
 
-export const BdeInfoForm: React.FC<BdeInfoFormProps> = ({ onSubmit }) => {
+export const BdeInfoForm: React.FC<BdeInfoFormProps> = ({ onSubmit, onAdminClick }) => {
   const [role, setRole] = useState<UserRole>('BDE');
   const [bdeName, setBdeName] = useState('');
   const [region, setRegion] = useState('');
@@ -42,7 +44,7 @@ export const BdeInfoForm: React.FC<BdeInfoFormProps> = ({ onSubmit }) => {
   };
 
   return (
-    <div className="max-w-xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden animate-fade-in">
+    <div className="max-w-xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden animate-fade-in relative pb-12">
       <div className="bg-indigo-600 px-6 py-8 text-center">
         <h2 className="text-2xl font-bold text-white mb-2">Welcome</h2>
         <p className="text-indigo-100">Select your role to continue.</p>
@@ -116,6 +118,16 @@ export const BdeInfoForm: React.FC<BdeInfoFormProps> = ({ onSubmit }) => {
             </Button>
             </div>
           </form>
+      </div>
+      
+      {/* Admin Link */}
+      <div className="absolute bottom-2 w-full text-center">
+        <button 
+            onClick={onAdminClick}
+            className="text-xs text-slate-300 hover:text-indigo-500 transition-colors"
+        >
+            Admin Access
+        </button>
       </div>
     </div>
   );

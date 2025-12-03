@@ -14,10 +14,12 @@ import { StoreSelection } from './components/StoreSelection';
 import { StockEntryList } from './components/StockEntryList';
 import { StoreAuditReview } from './components/StoreAuditReview';
 import { ReviewAndExport } from './components/ReviewAndExport';
-import { Input } from './components/common/Input';
+import { AdminLogin } from './components/AdminLogin';
+import { AdminDashboard } from './components/AdminDashboard';
 import { Button } from './components/common/Button';
+import { Input } from './components/common/Input';
 
-type AppStep = 'BDE_LOGIN' | 'DASHBOARD' | 'STORE_SELECT' | 'STOCK_ENTRY' | 'REVIEW_SINGLE' | 'REVIEW_SESSION';
+type AppStep = 'BDE_LOGIN' | 'DASHBOARD' | 'STORE_SELECT' | 'STOCK_ENTRY' | 'REVIEW_SINGLE' | 'REVIEW_SESSION' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('BDE_LOGIN');
@@ -28,346 +30,336 @@ const App: React.FC = () => {
   
   // Current Audit State
   const [currentStore, setCurrentStore] = useState<Store | null>(null);
-  const [currentStockData, setCurrentStockData] = useState<StockData>(new Map());
+  const [stockData, setStockData] = useState<StockData>(new Map());
   
+  // Custom Items added during session
   const [customSkus, setCustomSkus] = useState<Sku[]>([]);
-  const activeSkus = useMemo(() => [...ALL_SKUS, ...customSkus], [customSkus]);
-  const [isLoaded, setIsLoaded] = useState(false);
 
   // Modals
-  const [deleteModalState, setDeleteModalState] = useState<{isOpen: boolean, auditId: string | null, storeName: string}>({
-      isOpen: false,
-      auditId: null,
-      storeName: ''
-  });
-  
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [deleteModalState, setDeleteModalState] = useState<{isOpen: boolean, auditId: string | null}>({isOpen: false, auditId: null});
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [importCode, setImportCode] = useState('');
 
-  // --- CRASH RECOVERY LOGIC ---
+  // 1. Load Session on Mount
   useEffect(() => {
-      const saved = loadSessionState();
-      if (saved && saved.bdeInfo) {
-          setBdeInfo(saved.bdeInfo);
-          setSessionAudits(saved.sessionAudits);
-          setCurrentStore(saved.currentStore);
-          setCurrentStockData(saved.currentStockData);
-          setCustomSkus(saved.customSkus);
-          setStep(saved.step);
-          console.log("Session restored from auto-save");
-      }
-      setIsLoaded(true);
+    const saved = loadSessionState();
+    if (saved) {
+      setStep(saved.step);
+      setBdeInfo(saved.bdeInfo);
+      setSessionAudits(saved.sessionAudits);
+      setCurrentStore(saved.currentStore);
+      setStockData(saved.currentStockData);
+      setCustomSkus(saved.customSkus);
+    }
   }, []);
 
+  // 2. Auto-Save on Change
   useEffect(() => {
-      if (!isLoaded) return;
-      if (bdeInfo) {
-          serializeState(step, bdeInfo, sessionAudits, currentStore, currentStockData, customSkus);
+    if (step !== 'BDE_LOGIN' && step !== 'ADMIN_LOGIN' && step !== 'ADMIN_DASHBOARD') {
+      serializeState(step, bdeInfo, sessionAudits, currentStore, stockData, customSkus);
+    }
+  }, [step, bdeInfo, sessionAudits, currentStore, stockData, customSkus]);
+
+  // 3. Prevent accidental close
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (step !== 'BDE_LOGIN' && step !== 'ADMIN_LOGIN' && step !== 'ADMIN_DASHBOARD') {
+        e.preventDefault();
+        e.returnValue = '';
       }
-  }, [step, bdeInfo, sessionAudits, currentStore, currentStockData, customSkus, isLoaded]);
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [step]);
 
-  useEffect(() => {
-      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-          if (bdeInfo && (sessionAudits.length > 0 || currentStockData.size > 0)) {
-              e.preventDefault();
-              e.returnValue = ''; 
-          }
-      };
-      window.addEventListener('beforeunload', handleBeforeUnload);
-      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [bdeInfo, sessionAudits, currentStockData]);
+  const allSkus = useMemo(() => [...ALL_SKUS, ...customSkus], [customSkus]);
+  const auditedStoreIds = useMemo(() => sessionAudits.map(a => a.store.id), [sessionAudits]);
 
-
-  // --- HANDLERS ---
-
-  const handleLogin = (info: BdeInfo) => {
+  const handleBdeLogin = (info: BdeInfo) => {
     setBdeInfo(info);
     setStep('DASHBOARD');
   };
 
-  const handleLogout = () => {
-      const hasData = sessionAudits.length > 0;
-      const performLogout = () => {
-          setBdeInfo(null);
-          setSessionAudits([]);
-          setCurrentStockData(new Map());
-          setCurrentStore(null);
-          setStep('BDE_LOGIN');
-          clearSessionState(); 
-      };
-
-      if (hasData) {
-          setTimeout(() => {
-            if (window.confirm("Ending session will clear all collected data. Are you sure you want to exit?")) {
-                performLogout();
-            }
-          }, 50);
-      } else {
-          performLogout();
-      }
+  const handleAdminAccess = () => {
+      setStep('ADMIN_LOGIN');
   };
 
-  const handleStartAudit = () => {
-      setStep('STORE_SELECT');
+  const handleAdminLoginSuccess = () => {
+      setStep('ADMIN_DASHBOARD');
   };
 
-  const handleFinishSession = () => {
-      setStep('REVIEW_SESSION');
+  const handleLogout = useCallback(() => {
+    if (sessionAudits.length > 0) {
+        if(!window.confirm("Are you sure? Unsaved session data will be cleared.")) {
+            return;
+        }
+    }
+    clearSessionState();
+    setStep('BDE_LOGIN');
+    setBdeInfo(null);
+    setSessionAudits([]);
+    setCurrentStore(null);
+    setStockData(new Map());
+    setCustomSkus([]);
+  }, [sessionAudits]);
+
+  const handleStartStoreAudit = () => {
+    setStep('STORE_SELECT');
   };
-  
+
+  const handleStoreSelect = (store: Store) => {
+    setCurrentStore(store);
+    // If we are editing an existing audit, load its data, otherwise empty map
+    const existingAudit = sessionAudits.find(a => String(a.store.id) === String(store.id));
+    if (existingAudit) {
+        setStockData(new Map(existingAudit.stockData));
+    } else {
+        setStockData(new Map());
+    }
+    setStep('STOCK_ENTRY');
+  };
+
+  const handleAddCustomSku = (sku: Sku) => {
+      setCustomSkus(prev => [...prev, sku]);
+  };
+
+  const handleStockSubmit = (data: StockData) => {
+    setStockData(data);
+    setStep('REVIEW_SINGLE');
+  };
+
+  const handleAuditConfirm = () => {
+    if (!currentStore || !bdeInfo) return;
+
+    const newAudit: StoreAudit = {
+      id: Date.now().toString(),
+      store: currentStore,
+      stockData: new Map(stockData), // Create copy
+      timestamp: Date.now()
+    };
+
+    // If editing, replace. If new, push.
+    setSessionAudits(prev => {
+        const idx = prev.findIndex(a => String(a.store.id) === String(currentStore.id));
+        if (idx >= 0) {
+            const updated = [...prev];
+            updated[idx] = newAudit;
+            return updated;
+        }
+        return [...prev, newAudit];
+    });
+
+    setCurrentStore(null);
+    setStockData(new Map());
+    
+    // If BA, they stay on review screen to share code. If BDE, back to dashboard.
+    if (bdeInfo.role === 'BDE') {
+        setStep('DASHBOARD');
+    }
+  };
+
+  const handleEditAudit = () => {
+    setStep('STOCK_ENTRY');
+  };
+
+  const handleSessionFinish = () => {
+    setStep('REVIEW_SESSION');
+  };
+
+  const handleExport = () => {
+    if (bdeInfo) {
+      exportToExcel(bdeInfo, sessionAudits, allSkus);
+    }
+  };
+
+  // Dashboard History Actions
   const handleEditSessionAudit = (auditId: string) => {
       console.log("App: Edit requested for", auditId);
-      const auditToEdit = sessionAudits.find(a => String(a.id) === String(auditId));
-      if (auditToEdit) {
-          setSessionAudits(prev => prev.filter(a => String(a.id) !== String(auditId)));
-          setCurrentStore(auditToEdit.store);
-          setCurrentStockData(new Map(auditToEdit.stockData));
+      const audit = sessionAudits.find(a => String(a.id) === String(auditId));
+      if (audit) {
+          setCurrentStore(audit.store);
+          setStockData(new Map(audit.stockData)); // Deep copy to prevent ref issues
           setStep('STOCK_ENTRY');
-      } else {
-          console.error("Audit not found with ID:", auditId);
-          alert("Error: Could not load audit for editing.");
       }
   };
 
   const handleDeleteSessionAudit = (auditId: string) => {
-      const auditToDelete = sessionAudits.find(a => String(a.id) === String(auditId));
-      if (auditToDelete) {
-          setDeleteModalState({
-              isOpen: true,
-              auditId: auditId,
-              storeName: auditToDelete.store.name
-          });
+      console.log("App: Delete requested for", auditId);
+      const audit = sessionAudits.find(a => String(a.id) === String(auditId));
+      if (audit) {
+        setDeleteModalState({ isOpen: true, auditId });
+      } else {
+        alert("Error: Could not find audit data.");
       }
   };
-  
+
   const confirmDeleteAudit = () => {
       if (deleteModalState.auditId) {
-          setSessionAudits(prev => prev.filter(a => String(a.id) !== String(deleteModalState.auditId)));
-          setDeleteModalState({ isOpen: false, auditId: null, storeName: '' });
+        setSessionAudits(prev => prev.filter(a => String(a.id) !== String(deleteModalState.auditId)));
+        setDeleteModalState({ isOpen: false, auditId: null });
       }
   };
-  
-  // --- IMPORT LOGIC ---
+
+  // Import Audit Logic
   const handleImportAudit = () => {
-      setIsImportModalOpen(true);
+      setImportCode('');
+      setImportModalOpen(true);
   };
-  
-  const confirmImport = () => {
-      if (!importCode) return;
-      
+
+  const processImport = () => {
       const result = parseShareCode(importCode);
       if (result) {
+          const { store, stockData: importedData } = result;
+          
+          // Add to session
           const newAudit: StoreAudit = {
-              id: Date.now().toString(),
-              store: result.store,
-              stockData: result.stockData,
-              timestamp: Date.now()
+            id: Date.now().toString(),
+            store: store,
+            stockData: importedData,
+            timestamp: Date.now()
           };
           
-          setSessionAudits(prev => [...prev, newAudit]);
-          setIsImportModalOpen(false);
-          setImportCode('');
-          alert(`Successfully imported audit for ${result.store.name}`);
+          // Check if already exists, replace or add
+          setSessionAudits(prev => {
+             const idx = prev.findIndex(a => a.store.bsrn === store.bsrn);
+             if (idx >= 0) {
+                 const updated = [...prev];
+                 updated[idx] = newAudit;
+                 return updated;
+             }
+             return [...prev, newAudit];
+          });
+          
+          setImportModalOpen(false);
+          alert(`Successfully imported audit for ${store.name}`);
       } else {
-          alert("Invalid Code. Please ask the BA to share the code again.");
+          alert("Invalid Code. Please check and try again.");
       }
   };
-
-  // --- STORE FLOW ---
-  const handleStoreSelected = (store: Store) => {
-      setCurrentStore(store);
-      setCurrentStockData(new Map()); 
-      setStep('STOCK_ENTRY');
-  };
-
-  const handleBackToDashboard = () => {
-      setStep('DASHBOARD');
-  };
-
-  const handleStockSubmit = (data: StockData) => {
-      setCurrentStockData(data);
-      setStep('REVIEW_SINGLE');
-  };
-  
-  const handleAddCustomSku = (newSku: Sku) => {
-    setCustomSkus(prev => [...prev, newSku]);
-  };
-
-  const handleConfirmStoreAudit = () => {
-      if (currentStore && bdeInfo) {
-          const newAudit: StoreAudit = {
-              id: Date.now().toString(),
-              store: currentStore,
-              stockData: currentStockData,
-              timestamp: Date.now()
-          };
-          
-          setSessionAudits(prev => [...prev, newAudit]);
-          
-          // Cleanup
-          setCurrentStore(null);
-          setCurrentStockData(new Map());
-          setStep('DASHBOARD');
-      }
-  };
-
-  const handleEditCurrentStore = () => {
-      setStep('STOCK_ENTRY');
-  };
-
-  const handleExport = useCallback(() => {
-    if (bdeInfo) {
-      exportToExcel(bdeInfo, sessionAudits, activeSkus);
-    }
-  }, [bdeInfo, sessionAudits, activeSkus]);
-
-  const handleContinueSession = () => {
-      setStep('DASHBOARD');
-  };
-
 
   const renderStep = () => {
-    if (!isLoaded) return <div className="p-10 text-center text-slate-500">Loading...</div>;
-
     switch (step) {
       case 'BDE_LOGIN':
-        return <BdeInfoForm onSubmit={handleLogin} />;
+        return <BdeInfoForm onSubmit={handleBdeLogin} onAdminClick={handleAdminAccess} />;
       
+      case 'ADMIN_LOGIN':
+          return <AdminLogin onLoginSuccess={handleAdminLoginSuccess} onBack={() => setStep('BDE_LOGIN')} />;
+      
+      case 'ADMIN_DASHBOARD':
+          return <AdminDashboard onLogout={() => setStep('BDE_LOGIN')} />;
+
       case 'DASHBOARD':
-        return bdeInfo && (
+        return bdeInfo ? (
             <Dashboard 
                 bdeInfo={bdeInfo} 
                 sessionAudits={sessionAudits}
-                onStartAudit={handleStartAudit}
-                onFinishSession={handleFinishSession}
+                onStartAudit={handleStartStoreAudit}
+                onFinishSession={handleSessionFinish}
                 onLogout={handleLogout}
                 onEditAudit={handleEditSessionAudit}
                 onDeleteAudit={handleDeleteSessionAudit}
                 onImportAudit={handleImportAudit}
             />
-        );
-      
+        ) : null;
+
       case 'STORE_SELECT':
-        return bdeInfo && (
+        return bdeInfo ? (
             <StoreSelection 
                 bdeName={bdeInfo.bdeName}
-                onSelectStore={handleStoreSelected}
-                onBack={handleBackToDashboard}
-                auditedStoreIds={sessionAudits.map(a => a.store.id)}
+                onSelectStore={handleStoreSelect}
+                onBack={() => setStep('DASHBOARD')}
+                auditedStoreIds={auditedStoreIds}
             />
-        );
+        ) : null;
 
       case 'STOCK_ENTRY':
-        return currentStore && (
-          <StockEntryList 
-            initialStockData={currentStockData} 
-            availableSkus={activeSkus}
-            onSubmit={handleStockSubmit} 
-            onBack={() => {
-                if(window.confirm("Cancel this store audit? Data will be lost.")) {
-                    setStep('DASHBOARD');
-                    setCurrentStockData(new Map());
-                    setCurrentStore(null);
-                }
-            }}
-            onAddSku={handleAddCustomSku}
-            retailerName={currentStore.name} 
-          />
-        );
-        
+        return currentStore ? (
+            <StockEntryList 
+                initialStockData={stockData}
+                availableSkus={allSkus}
+                onSubmit={handleStockSubmit}
+                onBack={() => setStep('DASHBOARD')}
+                onAddSku={handleAddCustomSku}
+                retailerName={currentStore.name}
+            />
+        ) : null;
+
       case 'REVIEW_SINGLE':
-        return currentStore && bdeInfo && (
+        return currentStore && bdeInfo ? (
             <StoreAuditReview 
                 store={currentStore}
-                stockData={currentStockData}
-                allSkus={activeSkus}
-                onConfirm={handleConfirmStoreAudit}
-                onEdit={handleEditCurrentStore}
-                userRole={bdeInfo.role}
+                stockData={stockData}
+                allSkus={allSkus}
+                onConfirm={handleAuditConfirm}
+                onEdit={handleEditAudit}
+                bdeInfo={bdeInfo}
                 onHome={handleLogout}
             />
-        );
+        ) : null;
 
       case 'REVIEW_SESSION':
-        return bdeInfo && (
-          <ReviewAndExport
-            bdeInfo={bdeInfo}
-            sessionAudits={sessionAudits}
-            allSkus={activeSkus}
-            onExport={handleExport}
-            onContinueSession={handleContinueSession}
-            onHome={handleLogout}
-          />
-        );
+        return bdeInfo ? (
+            <ReviewAndExport 
+                bdeInfo={bdeInfo}
+                sessionAudits={sessionAudits}
+                allSkus={allSkus}
+                onExport={handleExport}
+                onContinueSession={() => setStep('DASHBOARD')}
+                onHome={handleLogout}
+            />
+        ) : null;
+
       default:
-        return <BdeInfoForm onSubmit={handleLogin} />;
+        return (
+            <div className="text-center p-10">
+                <p>Something went wrong.</p>
+                <Button onClick={handleLogout}>Reset App</Button>
+            </div>
+        );
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 relative">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
       <Header />
-      <main className="p-3 sm:p-6 pb-24 max-w-4xl mx-auto">
+      <main className="max-w-4xl mx-auto p-4 sm:p-6 pb-20">
         {renderStep()}
       </main>
-      
-      {/* Delete Modal */}
+
+      {/* Delete Confirmation Modal */}
       {deleteModalState.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fade-in">
-            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
-                <h3 className="text-lg font-bold text-center text-slate-900 mb-2">Delete Audit?</h3>
-                <p className="text-sm text-center text-slate-500 mb-6">
-                    Remove <span className="font-bold">{deleteModalState.storeName}</span>?
-                </p>
-                <div className="flex gap-3">
-                    <button 
-                        onClick={() => setDeleteModalState({isOpen: false, auditId: null, storeName: ''})}
-                        className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg"
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        onClick={confirmDeleteAudit}
-                        className="flex-1 px-4 py-2 bg-red-600 text-white font-bold rounded-lg"
-                    >
-                        Delete
-                    </button>
-                </div>
-            </div>
-        </div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fade-in">
+             <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+                 <h3 className="text-lg font-bold text-slate-800 mb-2">Delete Audit?</h3>
+                 <p className="text-slate-500 mb-6">This will remove the store data from your current session.</p>
+                 <div className="flex gap-3">
+                     <button onClick={() => setDeleteModalState({isOpen: false, auditId: null})} className="flex-1 py-3 font-bold text-slate-600 bg-slate-100 rounded-lg">Cancel</button>
+                     <button onClick={confirmDeleteAudit} className="flex-1 py-3 font-bold text-white bg-red-600 rounded-lg">Delete</button>
+                 </div>
+             </div>
+          </div>
       )}
 
-      {/* Import Modal */}
-      {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fade-in">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">Import Audit Code</h3>
-                <p className="text-sm text-slate-500 mb-4">Paste the code shared by the Beauty Advisor via WhatsApp.</p>
-                
-                <textarea 
-                    className="w-full h-32 p-3 border border-slate-300 rounded-lg text-xs font-mono mb-4 focus:ring-2 focus:ring-purple-500"
-                    placeholder="Paste code here..."
-                    value={importCode}
-                    onChange={(e) => setImportCode(e.target.value)}
-                ></textarea>
-
-                <div className="flex gap-3">
-                     <button 
-                        onClick={() => setIsImportModalOpen(false)}
-                        className="flex-1 px-4 py-3 bg-slate-100 text-slate-700 font-bold rounded-lg"
-                    >
-                        Cancel
-                    </button>
-                    <Button 
-                        onClick={confirmImport}
-                        disabled={!importCode}
-                        className="flex-1 bg-purple-600 hover:bg-purple-700"
-                    >
-                        Import Data
-                    </Button>
-                </div>
-            </div>
-        </div>
+      {/* Import Audit Modal */}
+      {importModalOpen && (
+           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fade-in">
+              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+                  <h3 className="text-lg font-bold text-slate-800 mb-4">Import Audit Code</h3>
+                  <div className="space-y-4">
+                      <p className="text-sm text-slate-500">Paste the code shared by the Beauty Advisor via WhatsApp.</p>
+                      <textarea 
+                          className="w-full h-32 p-3 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                          placeholder="Paste code here..."
+                          value={importCode}
+                          onChange={(e) => setImportCode(e.target.value)}
+                      />
+                      <div className="flex gap-3">
+                          <button onClick={() => setImportModalOpen(false)} className="flex-1 py-3 font-bold text-slate-600 bg-slate-100 rounded-lg">Cancel</button>
+                          <button onClick={processImport} disabled={!importCode} className="flex-1 py-3 font-bold text-white bg-indigo-600 rounded-lg disabled:opacity-50">Import</button>
+                      </div>
+                  </div>
+              </div>
+           </div>
       )}
     </div>
   );

@@ -29,3 +29,18 @@ export interface StoreAudit {
   stockData: StockData;
   timestamp: number;
 }
+
+// Data structure for Firestore
+export interface DbSubmission {
+    docId?: string; // Firebase Document ID (needed for deletion)
+    bdeName: string;
+    region: string;
+    role: UserRole;
+    storeName: string;
+    storeId: string;
+    auditId: string;
+    stockData: Record<string, number>; // Firestore doesn't save Maps natively
+    totalQty: number;
+    timestamp: any; // Firestore Timestamp
+    dateString: string; // YYYY-MM-DD for easier indexing
+}

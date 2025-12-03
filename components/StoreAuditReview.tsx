@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import type { Store, StockData, Sku, UserRole } from '../types';
+import type { Store, StockData, Sku, BdeInfo } from '../types';
 import { Button } from './common/Button';
 import { generateShareCode } from '../services/shareService';
+import { saveAuditsToCloud } from '../services/firebaseConfig';
 
 interface StoreAuditReviewProps {
     store: Store;
@@ -10,21 +11,41 @@ interface StoreAuditReviewProps {
     allSkus: Sku[];
     onConfirm: () => void;
     onEdit: () => void;
-    userRole: UserRole; 
+    bdeInfo: BdeInfo; 
     onHome: () => void;
 }
 
-export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stockData, allSkus, onConfirm, onEdit, userRole, onHome }) => {
+export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stockData, allSkus, onConfirm, onEdit, bdeInfo, onHome }) => {
     const totalCount = Array.from(stockData.values()).reduce((a: number, b: number) => a + b, 0);
     const filledSkus = Array.from(stockData.entries()).filter(([, count]) => count > 0);
     const skuMap = new Map<string, Sku>(allSkus.map(s => [s.id, s]));
     
     const [isCopied, setIsCopied] = useState(false);
+    const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SYNCING' | 'DONE' | 'ERROR'>('IDLE');
+
+    // Helper to trigger cloud sync manually
+    const triggerCloudSync = async () => {
+        // Only sync if we haven't already successfully done so, or if we want to retry an error
+        if (syncStatus === 'DONE' || syncStatus === 'SYNCING') return;
+
+        setSyncStatus('SYNCING');
+        // Construct a temporary audit object to save
+        const audit = {
+            id: Date.now().toString(),
+            store: store,
+            stockData: stockData,
+            timestamp: Date.now()
+        };
+        const success = await saveAuditsToCloud(bdeInfo, [audit]);
+        setSyncStatus(success ? 'DONE' : 'ERROR');
+    };
 
     const handleShare = () => {
+        // Trigger Cloud Save ONLY when sharing
+        triggerCloudSync();
+
         const code = generateShareCode(store, stockData);
         // WhatsApp URL Scheme
-        // We append a helpful message + the code
         const message = `*SOH Audit Report*\n*Store:* ${store.name}\n*ID:* ${store.bsrn}\n*Qty:* ${totalCount}\n\nCopy the code below and import in App:\n\n${code}`;
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
@@ -34,6 +55,9 @@ export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stock
     };
 
     const handleCopy = () => {
+        // Trigger Cloud Save ONLY when copying
+        triggerCloudSync();
+
         const code = generateShareCode(store, stockData);
         navigator.clipboard.writeText(code).then(() => {
             setIsCopied(true);
@@ -43,7 +67,7 @@ export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stock
 
     return (
         <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-fade-in">
-            <div className={`${userRole === 'BDE' ? 'bg-emerald-600' : 'bg-indigo-600'} p-6 text-white text-center`}>
+            <div className={`${bdeInfo.role === 'BDE' ? 'bg-emerald-600' : 'bg-indigo-600'} p-6 text-white text-center`}>
                 <div className="mb-4 flex justify-center">
                     <div className="bg-white/20 rounded-full p-3">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -53,6 +77,14 @@ export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stock
                 </div>
                 <h2 className="text-2xl font-bold">Audit Complete</h2>
                 <p className="text-white/90">{store.name}</p>
+                {/* Only show status if something happened */}
+                {syncStatus !== 'IDLE' && bdeInfo.role === 'BA' && (
+                    <div className="mt-2 flex justify-center h-6">
+                        {syncStatus === 'SYNCING' && <span className="text-xs bg-black/20 px-2 py-1 rounded-full flex items-center gap-1">Syncing...</span>}
+                        {syncStatus === 'DONE' && <span className="text-xs bg-emerald-500/20 px-2 py-1 rounded-full text-emerald-100 flex items-center gap-1">✓ Saved to Cloud</span>}
+                        {syncStatus === 'ERROR' && <span className="text-xs bg-red-500/20 px-2 py-1 rounded-full text-red-100 flex items-center gap-1">⚠ Sync Failed</span>}
+                    </div>
+                )}
             </div>
 
             <div className="p-6 space-y-6">
@@ -78,7 +110,7 @@ export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stock
                  </div>
 
                  <div className="space-y-3">
-                     {userRole === 'BDE' ? (
+                     {bdeInfo.role === 'BDE' ? (
                          <Button onClick={onConfirm} className="bg-emerald-600 hover:bg-emerald-700">
                             Confirm & Add to Session
                          </Button>

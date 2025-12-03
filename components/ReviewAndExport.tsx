@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import type { BdeInfo, StoreAudit, Sku } from '../types';
 import { Button } from './common/Button';
+import { saveAuditsToCloud } from '../services/firebaseConfig';
 
 interface ReviewAndExportProps {
   bdeInfo: BdeInfo;
@@ -13,13 +14,30 @@ interface ReviewAndExportProps {
 }
 
 export const ReviewAndExport: React.FC<ReviewAndExportProps> = ({ bdeInfo, sessionAudits, allSkus, onExport, onContinueSession, onHome }) => {
+  const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SYNCING' | 'DONE' | 'ERROR'>('IDLE');
   
   const totalStores = sessionAudits.length;
   const totalUnits = sessionAudits.reduce((sum, audit) => {
       return sum + Array.from(audit.stockData.values()).reduce((a: number, b: number) => a + b, 0);
   }, 0);
 
+  // Sync to Firebase Helper (Manual trigger)
+  const syncToCloud = async () => {
+      if (syncStatus === 'DONE') return;
+      setSyncStatus('SYNCING');
+      const success = await saveAuditsToCloud(bdeInfo, sessionAudits);
+      setSyncStatus(success ? 'DONE' : 'ERROR');
+  };
+
+  const handleDownload = () => {
+      // Trigger sync on click
+      if (syncStatus === 'ERROR' || syncStatus === 'IDLE') syncToCloud();
+      onExport();
+  };
+
   const handleEmail = () => {
+    // Trigger sync on click
+    if (syncStatus === 'ERROR' || syncStatus === 'IDLE') syncToCloud();
     const subject = encodeURIComponent(`Compiled Stock Report - ${bdeInfo.region} - ${bdeInfo.bdeName}`);
     const body = encodeURIComponent(`Dear Team,\n\nPlease find the attached compiled Stock In Hand (SOH) report for the following session:\n\nBDE: ${bdeInfo.bdeName}\nRegion: ${bdeInfo.region}\nTotal Stores Audited: ${totalStores}\nTotal Units Counted: ${totalUnits}\n\n[PLEASE ATTACH THE DOWNLOADED EXCEL FILE HERE]\n\nRegards,\n${bdeInfo.bdeName}`);
     window.location.href = `mailto:prit.singh@brillarescience.com?subject=${subject}&body=${body}`;
@@ -27,9 +45,22 @@ export const ReviewAndExport: React.FC<ReviewAndExportProps> = ({ bdeInfo, sessi
 
   return (
     <div className="bg-white rounded-xl shadow-lg animate-fade-in overflow-hidden">
-      <div className="p-6 bg-indigo-800 text-white">
-         <h2 className="text-2xl font-bold">Session Summary</h2>
-         <p className="opacity-80">Ready to compile and export.</p>
+      <div className="p-6 bg-indigo-800 text-white flex justify-between items-center">
+         <div>
+             <h2 className="text-2xl font-bold">Session Summary</h2>
+             <p className="opacity-80">Ready to compile and export.</p>
+         </div>
+         {/* Sync Status Badge */}
+         {syncStatus !== 'IDLE' && (
+             <div className="text-xs font-bold px-3 py-1 rounded-full bg-black/30 flex items-center gap-2">
+                 {syncStatus === 'SYNCING' && <>
+                    <svg className="animate-spin h-3 w-3 text-white" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Syncing...
+                 </>}
+                 {syncStatus === 'DONE' && <span className="text-emerald-300">✓ Saved to Cloud</span>}
+                 {syncStatus === 'ERROR' && <span className="text-red-300">⚠ Sync Failed</span>}
+             </div>
+         )}
       </div>
 
       <div className="p-6 space-y-6">
@@ -76,7 +107,7 @@ export const ReviewAndExport: React.FC<ReviewAndExportProps> = ({ bdeInfo, sessi
         {/* Actions */}
         <div className="space-y-4 pt-4 border-t border-slate-100">
             {/* Option 1: Download */}
-            <Button onClick={onExport} disabled={sessionAudits.length === 0} className="shadow-lg shadow-indigo-200 py-4">
+            <Button onClick={handleDownload} disabled={sessionAudits.length === 0} className="shadow-lg shadow-indigo-200 py-4">
                 <div className="flex items-center justify-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
