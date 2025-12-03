@@ -40,7 +40,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ bdeInfo, sessionAudits, on
                     </div>
                     <button 
                         onClick={onLogout}
-                        className="text-xs bg-black/20 hover:bg-red-600/90 border border-white/20 hover:border-red-500 text-white px-4 py-2 rounded-lg transition-all font-semibold flex items-center gap-1"
+                        className="text-xs bg-black/20 hover:bg-red-600/90 border border-white/20 hover:border-red-50 text-white px-4 py-2 rounded-lg transition-all font-semibold flex items-center gap-1"
                     >
                         End Session
                     </button>

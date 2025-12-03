@@ -1,4 +1,3 @@
-
 const CACHE_NAME = 'brillare-soh-v3';
 const urlsToCache = [
   '/',

@@ -1,4 +1,3 @@
-
 export type UserRole = 'BDE' | 'BA';
 
 export interface Sku {

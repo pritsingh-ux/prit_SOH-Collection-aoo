@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import type { Store } from '../types';
 import { Button } from './common/Button';

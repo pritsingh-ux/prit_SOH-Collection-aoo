@@ -1,4 +1,3 @@
-
 import type { Sku } from './types';
 
 export const BDE_DETAILS = [

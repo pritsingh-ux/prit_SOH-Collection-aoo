@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { Store, StockData, Sku, BdeInfo } from '../types';
 import { Button } from './common/Button';

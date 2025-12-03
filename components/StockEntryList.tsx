@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import type { Sku, StockData } from '../types';
 import { SKU_CATEGORIES } from '../constants';

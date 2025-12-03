@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import type { BdeInfo, UserRole } from '../types';
 import { BDE_DETAILS } from '../constants';

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { BdeInfo, StoreAudit, Sku } from '../types';
 import { Button } from './common/Button';
