@@ -63,7 +63,7 @@ export const removeStoreForBde = (bdeName: string, storeId: string): void => {
 export interface SessionState {
   step: string;
   bdeInfo: BdeInfo | null;
-  sessionAudits: StoreAudit[];
+  sessionAudits: any[]; // Changed from StoreAudit[] to any[] to fix Vercel Build error regarding Map/Array serialization type mismatch
   currentStore: Store | null;
   currentStockData: [string, number][]; // Map serialized to array
   customSkus: Sku[];
@@ -105,7 +105,7 @@ export const loadSessionState = (): {
 
         // 2. Rehydrate Session Audits
         // The audit.stockData inside sessionAudits was serialized to an array in serializeState
-        const hydratedAudits = data.sessionAudits.map(audit => {
+        const hydratedAudits = data.sessionAudits.map((audit: any) => {
             let auditStockMap = new Map<string, number>();
             
             if (Array.isArray(audit.stockData)) {
@@ -119,7 +119,7 @@ export const loadSessionState = (): {
             return {
                 ...audit,
                 stockData: auditStockMap
-            };
+            } as StoreAudit;
         });
         
         return {
@@ -158,7 +158,7 @@ export const serializeState = (
     saveSessionState({
         step,
         bdeInfo,
-        sessionAudits: serializableAudits as any, // Type assertion for storage
+        sessionAudits: serializableAudits, 
         currentStore,
         currentStockData: Array.from(currentStockData.entries()),
         customSkus

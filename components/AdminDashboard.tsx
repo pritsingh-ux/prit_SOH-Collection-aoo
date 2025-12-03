@@ -36,7 +36,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
     // Delete Modal State
-    const [deleteModal, setDeleteModal] = useState<{isOpen: boolean, docId: string | null}>({isOpen: false, docId: null});
+    const [deleteModal, setDeleteModal] = useState<{isOpen: boolean, docId: string | null, isDeleting: boolean}>({isOpen: false, docId: null, isDeleting: false});
 
     useEffect(() => {
         loadData();
@@ -127,18 +127,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         }
     };
 
-    const handleDeleteClick = (docId: string | undefined) => {
-        if (!docId) return;
-        setDeleteModal({ isOpen: true, docId });
+    const handleDeleteClick = (e: React.MouseEvent, docId: string | undefined) => {
+        e.preventDefault();
+        e.stopPropagation(); // Stop click from bubbling
+        
+        if (!docId) {
+            alert("Error: Cannot delete this item (Missing ID)");
+            return;
+        }
+        setDeleteModal({ isOpen: true, docId, isDeleting: false });
     };
 
     const confirmDelete = async () => {
         if (deleteModal.docId) {
+            setDeleteModal(prev => ({...prev, isDeleting: true}));
             const success = await deleteSubmissionFromCloud(deleteModal.docId);
             if (success) {
                 setSubmissions(prev => prev.filter(s => s.docId !== deleteModal.docId));
+                setDeleteModal({ isOpen: false, docId: null, isDeleting: false });
+            } else {
+                setDeleteModal(prev => ({...prev, isDeleting: false}));
             }
-            setDeleteModal({ isOpen: false, docId: null });
         }
     };
 
@@ -268,8 +277,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleDeleteClick(sub.docId)}
-                                                    className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                                    onClick={(e) => handleDeleteClick(e, sub.docId)}
+                                                    className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
                                                     title="Delete Submission"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -308,16 +317,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         </p>
                         <div className="flex gap-3">
                             <button 
-                                onClick={() => setDeleteModal({isOpen: false, docId: null})}
-                                className="flex-1 px-4 py-3 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-slate-200"
+                                onClick={() => setDeleteModal({isOpen: false, docId: null, isDeleting: false})}
+                                disabled={deleteModal.isDeleting}
+                                className="flex-1 px-4 py-3 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-slate-200 disabled:opacity-50"
                             >
                                 Cancel
                             </button>
                             <button 
                                 onClick={confirmDelete}
-                                className="flex-1 px-4 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700"
+                                disabled={deleteModal.isDeleting}
+                                className="flex-1 px-4 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 disabled:bg-red-400 flex justify-center items-center gap-2"
                             >
-                                Delete
+                                {deleteModal.isDeleting ? (
+                                    <>
+                                     <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                     Deleting...
+                                    </>
+                                ) : "Delete"}
                             </button>
                         </div>
                     </div>
