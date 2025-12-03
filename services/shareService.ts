@@ -6,6 +6,34 @@ interface SharePayload {
     timestamp: number;
 }
 
+// Modern, build-safe Base64 encoding for UTF-8 strings
+const utf8_to_b64 = (str: string): string => {
+    try {
+        const bytes = new TextEncoder().encode(str);
+        const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
+        return btoa(binString);
+    } catch (e) {
+        // Fallback for very old environments if needed, though rare
+        return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+            function toSolidBytes(match, p1) {
+                return String.fromCharCode(parseInt(p1, 16));
+        }));
+    }
+};
+
+const b64_to_utf8 = (str: string): string => {
+    try {
+        const binString = atob(str);
+        const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
+        return new TextDecoder().decode(bytes);
+    } catch (e) {
+        // Fallback
+        return decodeURIComponent(atob(str).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+    }
+};
+
 // Generate a Base64 string from the audit data
 export const generateShareCode = (store: Store, stockData: StockData): string => {
     try {
@@ -15,8 +43,7 @@ export const generateShareCode = (store: Store, stockData: StockData): string =>
             timestamp: Date.now()
         };
         const json = JSON.stringify(payload);
-        // UTF-8 safe Base64 encoding
-        return btoa(unescape(encodeURIComponent(json)));
+        return utf8_to_b64(json);
     } catch (e) {
         console.error("Failed to generate code", e);
         return "";
@@ -26,10 +53,10 @@ export const generateShareCode = (store: Store, stockData: StockData): string =>
 // Parse the Base64 string back into data
 export const parseShareCode = (code: string): { store: Store, stockData: StockData } | null => {
     try {
-        // Clean the code (remove any accidental whitespace or prefixes if user copied messy text)
+        // Clean the code (remove any accidental whitespace or prefixes)
         const cleanCode = code.trim().replace(/.*CODE:/, ''); 
         
-        const json = decodeURIComponent(escape(atob(cleanCode)));
+        const json = b64_to_utf8(cleanCode);
         const payload: SharePayload = JSON.parse(json);
         
         if (!payload.store || !payload.data) throw new Error("Invalid payload structure");

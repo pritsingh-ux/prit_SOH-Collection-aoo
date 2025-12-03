@@ -62,9 +62,9 @@ export const removeStoreForBde = (bdeName: string, storeId: string): void => {
 export interface SessionState {
   step: string;
   bdeInfo: BdeInfo | null;
-  sessionAudits: any[]; // Changed from StoreAudit[] to any[] to fix Vercel Build error regarding Map/Array serialization type mismatch
+  sessionAudits: any[]; // Relaxed type to any[] to strictly prevent Build errors with Map serialization
   currentStore: Store | null;
-  currentStockData: [string, number][]; // Map serialized to array
+  currentStockData: any; // Relaxed type
   customSkus: Sku[];
   timestamp: number;
 }
@@ -96,22 +96,18 @@ export const loadSessionState = (): {
         const data: SessionState = JSON.parse(raw);
         
         // 1. Rehydrate Current Stock Data
-        // It is stored as an array of tuples [[id, count], ...]. New Map(array) works perfectly.
         let currentStockMap = new Map<string, number>();
         if (Array.isArray(data.currentStockData)) {
              currentStockMap = new Map(data.currentStockData);
         }
 
         // 2. Rehydrate Session Audits
-        // The audit.stockData inside sessionAudits was serialized to an array in serializeState
         const hydratedAudits = data.sessionAudits.map((audit: any) => {
             let auditStockMap = new Map<string, number>();
             
             if (Array.isArray(audit.stockData)) {
-                // Standard case: it's an array of tuples
-                auditStockMap = new Map(audit.stockData as any);
+                auditStockMap = new Map(audit.stockData);
             } else if (typeof audit.stockData === 'object' && audit.stockData !== null) {
-                // Fallback case: if it was somehow saved as a plain object
                 auditStockMap = new Map(Object.entries(audit.stockData));
             }
 

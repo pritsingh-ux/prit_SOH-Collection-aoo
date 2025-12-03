@@ -126,7 +126,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         }
     };
 
-    const handleDeleteClick = (e: React.MouseEvent, docId: string | undefined) => {
+    const handleDeleteClick = (e: React.MouseEvent<HTMLButtonElement>, docId: string | undefined) => {
         e.preventDefault();
         e.stopPropagation(); // Stop click from bubbling
         
@@ -183,7 +183,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     <p className="font-bold">Database Error</p>
                     <p>{error}</p>
                     {error.includes('Permission') && (
-                        <p className="text-sm mt-2">Go to Firebase Console -> Firestore Database -> Rules and set <code>allow read, write: if true;</code></p>
+                        <p className="text-sm mt-2">Go to Firebase Console &gt; Firestore Database &gt; Rules and set <code>allow read, write: if true;</code></p>
                     )}
                 </div>
             )}
