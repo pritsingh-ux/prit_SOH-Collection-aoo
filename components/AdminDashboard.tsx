@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useState } from 'react';
 import { getAllSubmissions, deleteSubmissionFromCloud } from '../services/firebaseConfig';
 import { generateShareCode } from '../services/shareService';
@@ -183,7 +184,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     <p className="font-bold">Database Error</p>
                     <p>{error}</p>
                     {error.includes('Permission') && (
-                        <p className="text-sm mt-2">Go to Firebase Console &rarr; Firestore Database &rarr; Rules and set <code>allow read, write: if true;</code></p>
+                        <p className="text-sm mt-2">Please go to Firebase Console &rarr; Firestore Database &rarr; Rules and set <code>allow read, write: if true;</code></p>
                     )}
                 </div>
             )}

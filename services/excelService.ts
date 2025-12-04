@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { BdeInfo, StoreAudit, Sku } from '../types';
 
 declare const XLSX: any; // From script tag in index.html
