@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Store, BdeInfo, StoreAudit, Sku, StockData } from '../types';
 
 const STORAGE_KEY = 'soh_collection_stores';

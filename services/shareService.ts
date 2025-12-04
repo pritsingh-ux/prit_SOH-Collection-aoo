@@ -10,7 +10,7 @@ interface SharePayload {
 const utf8_to_b64 = (str: string): string => {
     try {
         const bytes = new TextEncoder().encode(str);
-        const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
+        const binString = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
         return btoa(binString);
     } catch (e) {
         // Fallback for very old environments if needed, though rare
@@ -24,7 +24,7 @@ const utf8_to_b64 = (str: string): string => {
 const b64_to_utf8 = (str: string): string => {
     try {
         const binString = atob(str);
-        const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
+        const bytes = Uint8Array.from(binString, (m) => m.charCodeAt(0));
         return new TextDecoder().decode(bytes);
     } catch (e) {
         // Fallback

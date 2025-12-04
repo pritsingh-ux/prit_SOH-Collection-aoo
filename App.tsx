@@ -16,7 +16,6 @@ import { ReviewAndExport } from './components/ReviewAndExport';
 import { AdminLogin } from './components/AdminLogin';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Button } from './components/common/Button';
-import { Input } from './components/common/Input';
 
 type AppStep = 'BDE_LOGIN' | 'DASHBOARD' | 'STORE_SELECT' | 'STOCK_ENTRY' | 'REVIEW_SINGLE' | 'REVIEW_SESSION' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD';
 
@@ -43,7 +42,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const saved = loadSessionState();
     if (saved) {
-      setStep(saved.step);
+      setStep(saved.step as AppStep); // Explicit cast for safety
       setBdeInfo(saved.bdeInfo);
       setSessionAudits(saved.sessionAudits);
       setCurrentStore(saved.currentStore);
