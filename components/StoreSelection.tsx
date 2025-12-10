@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Store } from '../types';
 import { Button } from './common/Button';
 import { Input } from './common/Input';
 import { getStoresForBde, addStoreForBde, removeStoreForBde } from '../services/storageService';
+import { MASTER_STORES } from '../constants';
 
 interface StoreSelectionProps {
   bdeName: string;
@@ -18,6 +19,10 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
   // New Store Form State
   const [newStoreName, setNewStoreName] = useState('');
   const [newStoreBsrn, setNewStoreBsrn] = useState('');
+
+  // Autocomplete State
+  const [filteredSuggestions, setFilteredSuggestions] = useState<{id: string, name: string}[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Delete Modal State
   const [deleteModal, setDeleteModal] = useState<{isOpen: boolean, store: Store | null}>({
@@ -35,6 +40,29 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
       if (stores.length === 0) {
           setIsAddingStore(true);
       }
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value;
+      setNewStoreName(val);
+      
+      // Filter Suggestions
+      if (val.length > 0) {
+          const matches = MASTER_STORES.filter(s => 
+              s.name.toLowerCase().includes(val.toLowerCase()) || 
+              s.id.toLowerCase().includes(val.toLowerCase())
+          ).slice(0, 8); // Limit to 8 suggestions
+          setFilteredSuggestions(matches);
+          setShowSuggestions(true);
+      } else {
+          setShowSuggestions(false);
+      }
+  };
+
+  const selectSuggestion = (store: {id: string, name: string}) => {
+      setNewStoreName(store.name);
+      setNewStoreBsrn(store.id);
+      setShowSuggestions(false);
   };
 
   const handleAddStore = () => {
@@ -71,7 +99,7 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-fade-in relative">
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-fade-in relative min-h-[400px]">
         <div className="p-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50">
             <button onClick={onBack} className="text-slate-400 hover:text-slate-600">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -157,24 +185,55 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
                     </div>
                 </div>
             ) : (
-                <div className="space-y-4 animate-fade-in">
+                <div className="space-y-4 animate-fade-in relative">
                      <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                        <p className="text-sm text-blue-800">Enter store details once. It will be saved for future visits.</p>
+                        <p className="text-sm text-blue-800">Search for a store to auto-fill ID, or enter details manually.</p>
                      </div>
-                     <Input
-                        id="storeName"
-                        label="Store Name"
-                        value={newStoreName}
-                        onChange={(e) => setNewStoreName(e.target.value)}
-                        placeholder="Enter Retailer Name"
-                      />
-                      <Input
-                        id="bsrn"
-                        label="Store Id (Unique ID)"
-                        value={newStoreBsrn}
-                        onChange={(e) => setNewStoreBsrn(e.target.value)}
-                        placeholder="e.g. ST-10023"
-                      />
+                     
+                     {/* Store Search / Name Input */}
+                     <div className="relative">
+                        <Input
+                            id="storeName"
+                            label="Store Name"
+                            value={newStoreName}
+                            onChange={handleNameChange}
+                            placeholder="Search or Enter Store Name..."
+                            autoComplete="off"
+                        />
+                        {/* Suggestions Dropdown */}
+                        {showSuggestions && filteredSuggestions.length > 0 && (
+                            <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                                {filteredSuggestions.map(s => (
+                                    <button
+                                        key={s.id}
+                                        onClick={() => selectSuggestion(s)}
+                                        className="w-full text-left px-4 py-3 hover:bg-indigo-50 border-b border-slate-50 last:border-0 transition-colors flex justify-between items-center group"
+                                    >
+                                        <span className="font-bold text-slate-700 group-hover:text-indigo-700">{s.name}</span>
+                                        <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded group-hover:bg-indigo-100 group-hover:text-indigo-600">{s.id}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                     </div>
+
+                      <div className="relative">
+                        <Input
+                            id="bsrn"
+                            label="Store Id"
+                            value={newStoreBsrn}
+                            onChange={(e) => setNewStoreBsrn(e.target.value)}
+                            placeholder="Auto-filled or Enter Manually"
+                        />
+                        {newStoreBsrn && (
+                             <div className="absolute right-3 top-8 text-emerald-500 pointer-events-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                             </div>
+                        )}
+                      </div>
+
                       <div className="flex gap-3 pt-4">
                         <Button 
                           onClick={handleAddStore}
