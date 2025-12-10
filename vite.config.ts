@@ -5,11 +5,12 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   build: {
-    chunkSizeWarningLimit: 2000, // Increase limit to 2MB to suppress warnings for Firebase/XLSX
+    chunkSizeWarningLimit: 3000, // Increased to 3MB to suppress warnings
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'firebase/app', 'firebase/firestore', 'firebase/auth'],
+          xlsx: ['xlsx'] // Separate chunk for Excel library
         },
       },
     },

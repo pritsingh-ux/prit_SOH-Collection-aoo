@@ -1,26 +1,43 @@
 // @ts-nocheck
 import type { BdeInfo, StoreAudit, Sku } from '../types';
+import { MASTER_STORES, SKU_STATUS_DB } from '../constants';
 
 declare const XLSX: any; // From script tag in index.html
 
 export const exportToExcel = (bdeInfo: BdeInfo, sessionAudits: StoreAudit[], allSkus: Sku[]) => {
   const skuMap = new Map(allSkus.map(sku => [sku.id, sku]));
 
+  // Create a map for quick Store Details lookup (Distributor/Region)
+  const masterStoreMap = new Map(MASTER_STORES.map(s => [s.id, s]));
+
   const allRows: any[] = [];
 
   sessionAudits.forEach(audit => {
+      // Look up full details from Master list if available
+      const masterDetails = masterStoreMap.get(audit.store.bsrn);
+      
+      const storeRegion = masterDetails?.region || 'N/A';
+      const distributor = masterDetails?.distributor || 'N/A';
+      const superDistributor = masterDetails?.superDistributor || 'N/A';
+
       const storeRows = Array.from(audit.stockData.entries())
         .filter(([, count]) => count > 0)
         .map(([skuId, count]) => {
             const sku = skuMap.get(skuId);
+            const status = SKU_STATUS_DB[skuId] || 'N/A';
+
             return {
                 'Date': new Date(audit.timestamp).toLocaleDateString(),
                 'BDE Name': bdeInfo.bdeName,
-                'Region': bdeInfo.region,
+                'BDE Region': bdeInfo.region,
                 'Store Name': audit.store.name,
                 'Store Id': audit.store.bsrn,
+                'Store Region': storeRegion, // Mapped
+                'Distributor': distributor,  // Mapped
+                'Super Distributor': superDistributor, // Mapped
                 'Product Code': skuId,
                 'Product Name': sku?.name || 'N/A',
+                'Product Status': status, // Mapped
                 'Category': sku?.category || 'N/A',
                 'Type': sku?.type || 'N/A',
                 'Stock Count': count,
@@ -42,11 +59,15 @@ export const exportToExcel = (bdeInfo: BdeInfo, sessionAudits: StoreAudit[], all
   worksheet['!cols'] = [
     { wch: 12 }, // Date
     { wch: 20 }, // BDE Name
-    { wch: 15 }, // Region
+    { wch: 15 }, // BDE Region
     { wch: 25 }, // Store Name
     { wch: 15 }, // Store Id
+    { wch: 15 }, // Store Region
+    { wch: 20 }, // Distributor
+    { wch: 20 }, // Super Distributor
     { wch: 15 }, // Product Code
     { wch: 40 }, // Product Name
+    { wch: 12 }, // Product Status
     { wch: 15 }, // Category
     { wch: 12 }, // Type
     { wch: 12 }, // Stock Count
