@@ -16,9 +16,10 @@ import { StoreAuditReview } from './components/StoreAuditReview';
 import { ReviewAndExport } from './components/ReviewAndExport';
 import { AdminLogin } from './components/AdminLogin';
 import { AdminDashboard } from './components/AdminDashboard';
+import { DistributorMappingMaster } from './components/DistributorMappingMaster';
 import { Button } from './components/common/Button';
 
-type AppStep = 'BDE_LOGIN' | 'DASHBOARD' | 'STORE_SELECT' | 'STOCK_ENTRY' | 'REVIEW_SINGLE' | 'REVIEW_SESSION' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD';
+type AppStep = 'BDE_LOGIN' | 'DASHBOARD' | 'STORE_SELECT' | 'STOCK_ENTRY' | 'REVIEW_SINGLE' | 'REVIEW_SESSION' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'ADMIN_MAPPINGS';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('BDE_LOGIN');
@@ -54,7 +55,7 @@ const App: React.FC = () => {
 
   // 2. Auto-Save on Change
   useEffect(() => {
-    if (step !== 'BDE_LOGIN' && step !== 'ADMIN_LOGIN' && step !== 'ADMIN_DASHBOARD') {
+    if (step !== 'BDE_LOGIN' && step !== 'ADMIN_LOGIN' && step !== 'ADMIN_DASHBOARD' && step !== 'ADMIN_MAPPINGS') {
       serializeState(step, bdeInfo, sessionAudits, currentStore, stockData, customSkus);
     }
   }, [step, bdeInfo, sessionAudits, currentStore, stockData, customSkus]);
@@ -62,7 +63,7 @@ const App: React.FC = () => {
   // 3. Prevent accidental close
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (step !== 'BDE_LOGIN' && step !== 'ADMIN_LOGIN' && step !== 'ADMIN_DASHBOARD') {
+      if (step !== 'BDE_LOGIN' && step !== 'ADMIN_LOGIN' && step !== 'ADMIN_DASHBOARD' && step !== 'ADMIN_MAPPINGS') {
         e.preventDefault();
         e.returnValue = '';
       }
@@ -250,7 +251,46 @@ const App: React.FC = () => {
           return <AdminLogin onLoginSuccess={handleAdminLoginSuccess} onBack={() => setStep('BDE_LOGIN')} />;
       
       case 'ADMIN_DASHBOARD':
-          return <AdminDashboard onLogout={() => setStep('BDE_LOGIN')} />;
+          return (
+            <div className="space-y-6">
+                <div className="flex bg-white p-1 rounded-lg border border-slate-200 w-fit">
+                    <button 
+                        onClick={() => setStep('ADMIN_DASHBOARD')}
+                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all bg-indigo-600 text-white shadow-sm`}
+                    >
+                        Master Database
+                    </button>
+                    <button 
+                        onClick={() => setStep('ADMIN_MAPPINGS')}
+                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all text-slate-500 hover:text-slate-700 hover:bg-slate-50`}
+                    >
+                        Distributor Mappings
+                    </button>
+                </div>
+                <AdminDashboard onLogout={() => setStep('BDE_LOGIN')} />
+            </div>
+          );
+
+      case 'ADMIN_MAPPINGS':
+          return (
+            <div className="space-y-6">
+                <div className="flex bg-white p-1 rounded-lg border border-slate-200 w-fit">
+                    <button 
+                        onClick={() => setStep('ADMIN_DASHBOARD')}
+                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all text-slate-500 hover:text-slate-700 hover:bg-slate-50`}
+                    >
+                        Master Database
+                    </button>
+                    <button 
+                        onClick={() => setStep('ADMIN_MAPPINGS')}
+                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all bg-indigo-600 text-white shadow-sm`}
+                    >
+                        Distributor Mappings
+                    </button>
+                </div>
+                <DistributorMappingMaster />
+            </div>
+          );
 
       case 'DASHBOARD':
         return bdeInfo ? (

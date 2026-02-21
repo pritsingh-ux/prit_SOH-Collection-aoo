@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, query, Timestamp, deleteDoc, doc } from 'firebase/firestore';
-import type { DbSubmission, StoreAudit, BdeInfo } from '../types';
+import { getFirestore, collection, addDoc, getDocs, query, Timestamp, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import type { DbSubmission, StoreAudit, BdeInfo, DistributorMapping, AuditLog } from '../types';
 
 // Configuration provided by user
 const firebaseConfig = {
@@ -19,6 +19,130 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // --- HELPER FUNCTIONS ---
+
+export const addAuditLog = async (log: Omit<AuditLog, 'docId' | 'timestamp'>) => {
+    try {
+        await addDoc(collection(db, 'auditLogs'), {
+            ...log,
+            timestamp: Timestamp.now()
+        });
+    } catch (e) {
+        console.error("Error adding audit log:", e);
+    }
+};
+
+export const getAuditLogs = async (): Promise<AuditLog[]> => {
+    try {
+        const q = query(collection(db, 'auditLogs'));
+        const querySnapshot = await getDocs(q);
+        const results: AuditLog[] = [];
+        querySnapshot.forEach((doc) => {
+            results.push({ ...doc.data(), docId: doc.id } as AuditLog);
+        });
+        return results;
+    } catch (e) {
+        console.error("Error fetching audit logs:", e);
+        return [];
+    }
+};
+
+export const getMappings = async (): Promise<DistributorMapping[]> => {
+    try {
+        const q = query(collection(db, 'mappings'));
+        const querySnapshot = await getDocs(q);
+        const results: DistributorMapping[] = [];
+        querySnapshot.forEach((doc) => {
+            results.push({ ...doc.data(), docId: doc.id } as DistributorMapping);
+        });
+        return results;
+    } catch (e) {
+        console.error("Error fetching mappings:", e);
+        return [];
+    }
+};
+
+export const saveMapping = async (mapping: Omit<DistributorMapping, 'docId' | 'updatedAt'>, adminName: string) => {
+    try {
+        const docRef = await addDoc(collection(db, 'mappings'), {
+            ...mapping,
+            updatedAt: Timestamp.now()
+        });
+        await addAuditLog({
+            action: 'CREATE',
+            entity: 'MAPPING',
+            details: `Created mapping for store ${mapping.storeName} (${mapping.storeId})`,
+            adminName
+        });
+        return docRef.id;
+    } catch (e) {
+        console.error("Error saving mapping:", e);
+        return null;
+    }
+};
+
+export const updateMapping = async (docId: string, mapping: Partial<DistributorMapping>, adminName: string) => {
+    try {
+        const mappingRef = doc(db, 'mappings', docId);
+        await updateDoc(mappingRef, {
+            ...mapping,
+            updatedAt: Timestamp.now()
+        });
+        await addAuditLog({
+            action: 'UPDATE',
+            entity: 'MAPPING',
+            details: `Updated mapping for docId ${docId}`,
+            adminName
+        });
+        return true;
+    } catch (e) {
+        console.error("Error updating mapping:", e);
+        return false;
+    }
+};
+
+export const deleteMapping = async (docId: string, storeName: string, adminName: string) => {
+    try {
+        await deleteDoc(doc(db, 'mappings', docId));
+        await addAuditLog({
+            action: 'DELETE',
+            entity: 'MAPPING',
+            details: `Deleted mapping for store ${storeName}`,
+            adminName
+        });
+        return true;
+    } catch (e) {
+        console.error("Error deleting mapping:", e);
+        return false;
+    }
+};
+
+export const bulkUploadMappings = async (mappings: Omit<DistributorMapping, 'docId' | 'updatedAt'>[], adminName: string) => {
+    try {
+        const batch = writeBatch(db);
+        const mappingsCol = collection(db, 'mappings');
+        const timestamp = Timestamp.now();
+
+        mappings.forEach(m => {
+            const newDocRef = doc(mappingsCol);
+            batch.set(newDocRef, {
+                ...m,
+                updatedAt: timestamp
+            });
+        });
+
+        await batch.commit();
+        await addAuditLog({
+            action: 'BULK_UPLOAD',
+            entity: 'MAPPING',
+            details: `Bulk uploaded ${mappings.length} mappings`,
+            adminName
+        });
+        return true;
+    } catch (e) {
+        console.error("Error bulk uploading mappings:", e);
+        return false;
+    }
+};
 
 export const saveAuditsToCloud = async (bdeInfo: BdeInfo, sessionAudits: StoreAudit[]) => {
     try {
@@ -94,6 +218,42 @@ export const deleteSubmissionFromCloud = async (docId: string): Promise<boolean>
     } catch (e) {
         console.error("Error deleting document: ", e);
         alert("Failed to delete submission.");
+        return false;
+    }
+};
+
+export const bulkDeleteMappings = async (docIds: string[], adminName: string): Promise<boolean> => {
+    try {
+        const batch = writeBatch(db);
+        docIds.forEach(id => {
+            batch.delete(doc(db, 'mappings', id));
+        });
+        await batch.commit();
+        await addAuditLog({
+            action: 'DELETE',
+            entity: 'MAPPING',
+            details: `Bulk deleted ${docIds.length} mappings`,
+            adminName
+        });
+        return true;
+    } catch (e) {
+        console.error("Error bulk deleting mappings:", e);
+        alert("Failed to delete multiple mappings.");
+        return false;
+    }
+};
+
+export const bulkDeleteSubmissions = async (docIds: string[]): Promise<boolean> => {
+    try {
+        const batch = writeBatch(db);
+        docIds.forEach(id => {
+            batch.delete(doc(db, 'audits', id));
+        });
+        await batch.commit();
+        return true;
+    } catch (e) {
+        console.error("Error bulk deleting documents: ", e);
+        alert("Failed to delete multiple submissions.");
         return false;
     }
 };

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { Store } from '../types';
+import type { Store, DistributorMapping } from '../types';
 import { Button } from './common/Button';
 import { Input } from './common/Input';
 import { getStoresForBde, addStoreForBde, removeStoreForBde } from '../services/storageService';
 import { MASTER_STORES } from '../constants';
+import { getMappings } from '../services/firebaseConfig';
 
 interface StoreSelectionProps {
   bdeName: string;
@@ -15,13 +16,14 @@ interface StoreSelectionProps {
 export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelectStore, onBack, auditedStoreIds }) => {
   const [availableStores, setAvailableStores] = useState<Store[]>([]);
   const [isAddingStore, setIsAddingStore] = useState(false);
+  const [dbMappings, setDbMappings] = useState<DistributorMapping[]>([]);
 
   // New Store Form State
   const [newStoreName, setNewStoreName] = useState('');
   const [newStoreBsrn, setNewStoreBsrn] = useState('');
 
   // Autocomplete State
-  const [filteredSuggestions, setFilteredSuggestions] = useState<{id: string, name: string}[]>([]);
+  const [filteredSuggestions, setFilteredSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Delete Modal State
@@ -32,7 +34,17 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
 
   useEffect(() => {
     loadStores();
+    loadDbMappings();
   }, [bdeName]);
+
+  const loadDbMappings = async () => {
+      try {
+          const mappings = await getMappings();
+          setDbMappings(mappings);
+      } catch (e) {
+          console.error("Failed to load mappings from DB", e);
+      }
+  };
 
   const loadStores = () => {
       const stores = getStoresForBde(bdeName);
@@ -46,13 +58,24 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
       const val = e.target.value;
       setNewStoreName(val);
       
-      // Filter Suggestions
+      // Filter Suggestions from both DB and Constants
       if (val.length > 0) {
-          const matches = MASTER_STORES.filter(s => 
-              s.name.toLowerCase().includes(val.toLowerCase()) || 
-              s.id.toLowerCase().includes(val.toLowerCase())
-          ).slice(0, 8); // Limit to 8 suggestions
-          setFilteredSuggestions(matches);
+          const searchVal = val.toLowerCase();
+          
+          // Use DB mappings as priority
+          const dbMatches = dbMappings.filter(m => 
+              m.storeName.toLowerCase().includes(searchVal) || 
+              m.storeId.toLowerCase().includes(searchVal)
+          ).map(m => ({ id: m.storeId, name: m.storeName, distributor: m.distributor }));
+
+          // Fallback to constants if not many matches in DB
+          const constantMatches = MASTER_STORES.filter(s => 
+              (s.name.toLowerCase().includes(searchVal) || s.id.toLowerCase().includes(searchVal)) &&
+              !dbMatches.some(dm => dm.id === s.id)
+          ).map(s => ({ id: s.id, name: s.name, distributor: s.distributor }));
+
+          const allMatches = [...dbMatches, ...constantMatches].slice(0, 8);
+          setFilteredSuggestions(allMatches);
           setShowSuggestions(true);
       } else {
           setShowSuggestions(false);
@@ -209,7 +232,10 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
                                         onClick={() => selectSuggestion(s)}
                                         className="w-full text-left px-4 py-3 hover:bg-indigo-50 border-b border-slate-50 last:border-0 transition-colors flex justify-between items-center group"
                                     >
-                                        <span className="font-bold text-slate-700 group-hover:text-indigo-700">{s.name}</span>
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-slate-700 group-hover:text-indigo-700">{s.name}</span>
+                                            {s.distributor && <span className="text-[10px] text-slate-400">Dist: {s.distributor}</span>}
+                                        </div>
                                         <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded group-hover:bg-indigo-100 group-hover:text-indigo-600">{s.id}</span>
                                     </button>
                                 ))}

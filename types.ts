@@ -29,6 +29,25 @@ export interface StoreAudit {
   timestamp: number;
 }
 
+export interface DistributorMapping {
+    docId?: string;
+    storeId: string;
+    storeName: string;
+    distributor: string;
+    superDistributor: string;
+    region: string;
+    updatedAt: any;
+}
+
+export interface AuditLog {
+    docId?: string;
+    action: 'CREATE' | 'UPDATE' | 'DELETE' | 'BULK_UPLOAD';
+    entity: 'MAPPING' | 'SUBMISSION';
+    details: string;
+    adminName: string;
+    timestamp: any;
+}
+
 // Data structure for Firestore
 export interface DbSubmission {
     docId?: string; // Firebase Document ID (needed for deletion)
