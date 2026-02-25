@@ -152,12 +152,12 @@ export const saveAuditsToCloud = async (bdeInfo: BdeInfo, sessionAudits: StoreAu
         // We save each store audit as a separate document for easier querying later
         const promises = sessionAudits.map(audit => {
             // Convert Map to Object for Firestore
-            const stockObj: Record<string, number> = {};
+            const stockObj: Record<string, StockEntry> = {};
             audit.stockData.forEach((val, key) => {
                 stockObj[key] = val;
             });
             
-            const totalQty = Array.from(audit.stockData.values()).reduce((a, b) => a + b, 0);
+            const totalQty = Array.from(audit.stockData.values()).reduce((a, entry: any) => a + (entry.qty || 0), 0);
 
             const submission: DbSubmission = {
                 bdeName: bdeInfo.bdeName,

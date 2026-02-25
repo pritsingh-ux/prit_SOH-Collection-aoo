@@ -22,36 +22,43 @@ import { Button } from './components/common/Button';
 type AppStep = 'BDE_LOGIN' | 'DASHBOARD' | 'STORE_SELECT' | 'STOCK_ENTRY' | 'REVIEW_SINGLE' | 'REVIEW_SESSION' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'ADMIN_MAPPINGS';
 
 const App: React.FC = () => {
-  const [step, setStep] = useState<AppStep>('BDE_LOGIN');
-  const [bdeInfo, setBdeInfo] = useState<BdeInfo | null>(null);
+  const [step, setStep] = useState<AppStep>(() => {
+    const saved = loadSessionState();
+    return (saved?.step as AppStep) || 'BDE_LOGIN';
+  });
+  const [bdeInfo, setBdeInfo] = useState<BdeInfo | null>(() => {
+    const saved = loadSessionState();
+    return saved?.bdeInfo || null;
+  });
   
   // Session State
-  const [sessionAudits, setSessionAudits] = useState<StoreAudit[]>([]);
+  const [sessionAudits, setSessionAudits] = useState<StoreAudit[]>(() => {
+    const saved = loadSessionState();
+    return saved?.sessionAudits || [];
+  });
   
   // Current Audit State
-  const [currentStore, setCurrentStore] = useState<Store | null>(null);
-  const [stockData, setStockData] = useState<StockData>(new Map());
+  const [currentStore, setCurrentStore] = useState<Store | null>(() => {
+    const saved = loadSessionState();
+    return saved?.currentStore || null;
+  });
+  const [stockData, setStockData] = useState<StockData>(() => {
+    const saved = loadSessionState();
+    return saved?.currentStockData || new Map();
+  });
   
   // Custom Items added during session
-  const [customSkus, setCustomSkus] = useState<Sku[]>([]);
+  const [customSkus, setCustomSkus] = useState<Sku[]>(() => {
+    const saved = loadSessionState();
+    return saved?.customSkus || [];
+  });
 
   // Modals
   const [deleteModalState, setDeleteModalState] = useState<{isOpen: boolean, auditId: string | null}>({isOpen: false, auditId: null});
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importCode, setImportCode] = useState('');
 
-  // 1. Load Session on Mount
-  useEffect(() => {
-    const saved = loadSessionState();
-    if (saved) {
-      setStep(saved.step as AppStep); // Explicit cast for safety
-      setBdeInfo(saved.bdeInfo);
-      setSessionAudits(saved.sessionAudits);
-      setCurrentStore(saved.currentStore);
-      setStockData(saved.currentStockData);
-      setCustomSkus(saved.customSkus);
-    }
-  }, []);
+  // 1. Load Session on Mount - Removed as we use lazy initializers
 
   // 2. Auto-Save on Change
   useEffect(() => {

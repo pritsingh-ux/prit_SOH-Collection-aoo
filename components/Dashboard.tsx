@@ -16,7 +16,9 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ bdeInfo, sessionAudits, onStartAudit, onFinishSession, onLogout, onEditAudit, onDeleteAudit, onImportAudit }) => {
     
     const totalItemsCollected = sessionAudits.reduce((sum, audit) => {
-        return sum + Array.from(audit.stockData.values()).reduce((a: number, b: number) => a + b, 0);
+        return sum + Array.from(audit.stockData.values()).reduce((a: number, entry: any) => 
+            a + (entry.batches?.reduce((bSum: number, b: any) => bSum + (Number(b.qty) || 0), 0) || 0), 0
+        );
     }, 0);
 
     return (
@@ -102,7 +104,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ bdeInfo, sessionAudits, on
                 ) : (
                     <div className="space-y-3">
                         {sessionAudits.map((audit, index) => {
-                            const count = Array.from(audit.stockData.values()).reduce((a: number, b: number) => a + b, 0);
+                            const count = Array.from(audit.stockData.values()).reduce((a: number, entry: any) => 
+                                a + (entry.batches?.reduce((bSum: number, b: any) => bSum + (Number(b.qty) || 0), 0) || 0), 0
+                            );
                             return (
                                 <div key={audit.id} className="bg-white p-3 sm:p-4 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center relative z-0">
                                     <div className="flex items-center gap-3 flex-1 min-w-0">

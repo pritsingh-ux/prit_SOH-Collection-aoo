@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { Store, DistributorMapping } from '../types';
 import { Button } from './common/Button';
 import { Input } from './common/Input';
@@ -14,9 +14,16 @@ interface StoreSelectionProps {
 }
 
 export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelectStore, onBack, auditedStoreIds }) => {
-  const [availableStores, setAvailableStores] = useState<Store[]>([]);
-  const [isAddingStore, setIsAddingStore] = useState(false);
+  const [isAddingStore, setIsAddingStore] = useState(() => {
+    const stores = getStoresForBde(bdeName);
+    return stores.length === 0;
+  });
+  const [availableStores, setAvailableStores] = useState<Store[]>(() => getStoresForBde(bdeName));
   const [dbMappings, setDbMappings] = useState<DistributorMapping[]>([]);
+
+  useEffect(() => {
+    setAvailableStores(getStoresForBde(bdeName));
+  }, [bdeName]);
 
   // New Store Form State
   const [newStoreName, setNewStoreName] = useState('');
@@ -33,26 +40,16 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
   });
 
   useEffect(() => {
-    loadStores();
-    loadDbMappings();
-  }, [bdeName]);
-
-  const loadDbMappings = async () => {
+    const loadDbMappings = async () => {
       try {
           const mappings = await getMappings();
           setDbMappings(mappings);
       } catch (e) {
           console.error("Failed to load mappings from DB", e);
       }
-  };
-
-  const loadStores = () => {
-      const stores = getStoresForBde(bdeName);
-      setAvailableStores(stores);
-      if (stores.length === 0) {
-          setIsAddingStore(true);
-      }
-  };
+    };
+    loadDbMappings();
+  }, [bdeName]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value;
@@ -99,7 +96,7 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
     addStoreForBde(bdeName, newStore);
     
     // Refresh list
-    loadStores();
+    setAvailableStores(getStoresForBde(bdeName));
     setIsAddingStore(false);
     
     // Clear form
@@ -116,7 +113,8 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
   const confirmDelete = () => {
       if (deleteModal.store) {
         removeStoreForBde(bdeName, deleteModal.store.id);
-        loadStores();
+        // Refresh list
+        setAvailableStores(getStoresForBde(bdeName));
         setDeleteModal({ isOpen: false, store: null });
       }
   };

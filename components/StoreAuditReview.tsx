@@ -15,8 +15,12 @@ interface StoreAuditReviewProps {
 }
 
 export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stockData, allSkus, onConfirm, onEdit, bdeInfo, onHome }) => {
-    const totalCount = Array.from(stockData.values()).reduce((a: number, b: number) => a + b, 0);
-    const filledSkus = Array.from(stockData.entries()).filter(([, count]) => count > 0);
+    const totalCount = Array.from(stockData.values()).reduce((a: number, entry: StockEntry) => 
+        a + (entry.batches?.reduce((sum, b) => sum + (Number(b.qty) || 0), 0) || 0), 0
+    );
+    const filledSkus = Array.from(stockData.entries()).filter(([, entry]) => 
+        entry.batches?.some(b => (Number(b.qty) || 0) > 0)
+    );
     const skuMap = new Map<string, Sku>(allSkus.map(s => [s.id, s]));
     
     const [isCopied, setIsCopied] = useState(false);
@@ -96,12 +100,25 @@ export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stock
                     <p className="text-sm font-bold text-slate-500 mb-2">Preview ({filledSkus.length} Items)</p>
                     <div className="max-h-40 overflow-y-auto space-y-2 pr-2">
                         {filledSkus.length === 0 && <p className="text-slate-400 italic text-sm">No items counted.</p>}
-                        {filledSkus.map(([id, count]) => {
+                        {filledSkus.map(([id, entry]) => {
                             const sku = skuMap.get(id);
                             return (
-                                <div key={id} className="flex justify-between text-sm">
-                                    <span className="text-slate-700 truncate flex-1 mr-2">{sku?.name || id}</span>
-                                    <span className="font-bold text-slate-900">{count}</span>
+                                <div key={id} className="flex justify-between items-center text-sm">
+                                    <div className="flex flex-col flex-1 mr-2 min-w-0">
+                                        <span className="text-slate-700 truncate">{sku?.name || id}</span>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {entry.batches.map((batch, bIdx) => (
+                                                batch.qty > 0 && (
+                                                    <span key={bIdx} className="text-[9px] bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 text-slate-500">
+                                                        {batch.qty} @ {batch.expiryDate || 'No Exp'}
+                                                    </span>
+                                                )
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <span className="font-bold text-slate-900">
+                                        {entry.batches.reduce((sum, b) => sum + b.qty, 0)}
+                                    </span>
                                 </div>
                             );
                         })}

@@ -97,14 +97,14 @@ export const loadSessionState = (): {
         const data: SessionState = JSON.parse(raw);
         
         // 1. Rehydrate Current Stock Data
-        let currentStockMap = new Map<string, number>();
+        let currentStockMap = new Map<string, StockEntry>();
         if (Array.isArray(data.currentStockData)) {
              currentStockMap = new Map(data.currentStockData);
         }
 
         // 2. Rehydrate Session Audits
         const hydratedAudits = data.sessionAudits.map((audit: any) => {
-            let auditStockMap = new Map<string, number>();
+            let auditStockMap = new Map<string, StockEntry>();
             
             if (Array.isArray(audit.stockData)) {
                 auditStockMap = new Map(audit.stockData);

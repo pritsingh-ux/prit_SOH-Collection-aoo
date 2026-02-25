@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { BdeInfo, UserRole } from '../types';
 import { BDE_DETAILS } from '../constants';
 import { Button } from './common/Button';
@@ -12,25 +12,19 @@ interface BdeInfoFormProps {
 export const BdeInfoForm: React.FC<BdeInfoFormProps> = ({ onSubmit, onAdminClick }) => {
   const [role, setRole] = useState<UserRole>('BDE');
   const [bdeName, setBdeName] = useState('');
-  const [region, setRegion] = useState('');
   
   // For BA Manual Input
   const [baName, setBaName] = useState('');
 
-  useEffect(() => {
+  const region = useMemo(() => {
     if (role === 'BDE') {
         if (bdeName) {
             const bdeDetail = BDE_DETAILS.find(b => b.name === bdeName);
-            if (bdeDetail) {
-                setRegion(bdeDetail.region);
-            }
-        } else {
-            setRegion('');
+            return bdeDetail?.region || '';
         }
-    } else {
-        // Reset for BA
-        setRegion('Store Audit Mode'); 
+        return '';
     }
+    return 'Store Audit Mode';
   }, [bdeName, role]);
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -1,9 +1,9 @@
 // @ts-nocheck
-import type { Store, StockData } from '../types';
+import type { Store, StockData, StockEntry } from '../types';
 
 interface SharePayload {
     store: Store;
-    data: [string, number][]; // Array of tuples for compactness
+    data: [string, StockEntry][]; // Array of tuples for compactness
     timestamp: number;
 }
 
@@ -40,7 +40,9 @@ export const generateShareCode = (store: Store, stockData: StockData): string =>
     try {
         const payload: SharePayload = {
             store,
-            data: Array.from(stockData.entries()).filter(([_, count]) => count > 0),
+            data: Array.from(stockData.entries()).filter(([_, entry]) => 
+                entry.batches?.some(b => (Number(b.qty) || 0) > 0)
+            ),
             timestamp: Date.now()
         };
         const json = JSON.stringify(payload);

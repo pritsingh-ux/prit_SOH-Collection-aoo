@@ -20,29 +20,34 @@ export const exportToExcel = (bdeInfo: BdeInfo, sessionAudits: StoreAudit[], all
       const distributor = masterDetails?.distributor || 'N/A';
       const superDistributor = masterDetails?.superDistributor || 'N/A';
 
-      const storeRows = Array.from(audit.stockData.entries())
-        .filter(([, count]) => count > 0)
-        .map(([skuId, count]) => {
-            const sku = skuMap.get(skuId);
-            const status = SKU_STATUS_DB[skuId] || 'N/A';
+      const storeRows: any[] = [];
+      
+      Array.from(audit.stockData.entries()).forEach(([skuId, entry]) => {
+          const sku = skuMap.get(skuId);
+          const status = SKU_STATUS_DB[skuId] || 'N/A';
 
-            return {
-                'Date': new Date(audit.timestamp).toLocaleDateString(),
-                'BDE Name': bdeInfo.bdeName,
-                'BDE Region': bdeInfo.region,
-                'Store Name': audit.store.name,
-                'Store Id': audit.store.bsrn,
-                'Store Region': storeRegion, // Mapped
-                'Distributor': distributor,  // Mapped
-                'Super Distributor': superDistributor, // Mapped
-                'Product Code': skuId,
-                'Product Name': sku?.name || 'N/A',
-                'Product Status': status, // Mapped
-                'Category': sku?.category || 'N/A',
-                'Type': sku?.type || 'N/A',
-                'Stock Count': count,
-            };
-        });
+          entry.batches.forEach(batch => {
+              if (batch.qty > 0) {
+                  storeRows.push({
+                      'Date': new Date(audit.timestamp).toLocaleDateString(),
+                      'BDE Name': bdeInfo.bdeName,
+                      'BDE Region': bdeInfo.region,
+                      'Store Name': audit.store.name,
+                      'Store Id': audit.store.bsrn,
+                      'Store Region': storeRegion,
+                      'Distributor': distributor,
+                      'Super Distributor': superDistributor,
+                      'Product Code': skuId,
+                      'Product Name': sku?.name || 'N/A',
+                      'Product Status': status,
+                      'Category': sku?.category || 'N/A',
+                      'Type': sku?.type || 'N/A',
+                      'Stock Count': batch.qty,
+                      'Expiry Date': batch.expiryDate || 'N/A',
+                  });
+              }
+          });
+      });
       allRows.push(...storeRows);
   });
 
@@ -71,6 +76,7 @@ export const exportToExcel = (bdeInfo: BdeInfo, sessionAudits: StoreAudit[], all
     { wch: 15 }, // Category
     { wch: 12 }, // Type
     { wch: 12 }, // Stock Count
+    { wch: 15 }, // Expiry Date
   ];
 
   // Format filename: SOH_Region_BDE_Date.xlsx

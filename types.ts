@@ -20,7 +20,16 @@ export interface BdeInfo {
   role: UserRole;
 }
 
-export type StockData = Map<string, number>;
+export interface StockBatch {
+  qty: number;
+  expiryDate: string;
+}
+
+export interface StockEntry {
+  batches: StockBatch[];
+}
+
+export type StockData = Map<string, StockEntry>;
 
 export interface StoreAudit {
   id: string;
@@ -57,7 +66,7 @@ export interface DbSubmission {
     storeName: string;
     storeId: string;
     auditId: string;
-    stockData: Record<string, number>; // Firestore doesn't save Maps natively
+    stockData: Record<string, StockEntry>; // Firestore doesn't save Maps natively
     totalQty: number;
     timestamp: any; // Firestore Timestamp
     dateString: string; // YYYY-MM-DD for easier indexing

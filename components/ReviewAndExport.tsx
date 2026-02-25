@@ -17,7 +17,9 @@ export const ReviewAndExport: React.FC<ReviewAndExportProps> = ({ bdeInfo, sessi
   
   const totalStores = sessionAudits.length;
   const totalUnits = sessionAudits.reduce((sum, audit) => {
-      return sum + Array.from(audit.stockData.values()).reduce((a: number, b: number) => a + b, 0);
+      return sum + Array.from(audit.stockData.values()).reduce((a: number, entry: StockEntry) => 
+        a + (entry.batches?.reduce((bSum, b) => bSum + (Number(b.qty) || 0), 0) || 0), 0
+      , 0);
   }, 0);
 
   // Sync to Firebase Helper (Manual trigger)
@@ -88,7 +90,9 @@ export const ReviewAndExport: React.FC<ReviewAndExportProps> = ({ bdeInfo, sessi
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
                         {sessionAudits.map(audit => {
-                            const qty = Array.from(audit.stockData.values()).reduce((a: number, b: number) => a + b, 0);
+                            const qty = Array.from(audit.stockData.values()).reduce((a: number, entry: StockEntry) => 
+                                a + (entry.batches?.reduce((bSum, b) => bSum + (Number(b.qty) || 0), 0) || 0), 0
+                            );
                             return (
                                 <tr key={audit.id}>
                                     <td className="px-4 py-3 text-sm text-slate-800 font-medium">

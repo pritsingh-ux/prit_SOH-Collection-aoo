@@ -35,6 +35,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     
     // Filtering State
     const [filterRole, setFilterRole] = useState<'ALL' | 'BDE' | 'BA'>('ALL');
+    const [expiryFilter, setExpiryFilter] = useState<'ALL' | 'CRITICAL' | 'WARNING' | 'INFO'>('ALL');
     
     // Copy Feedback State
     const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
@@ -45,6 +46,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     useEffect(() => {
         loadData();
     }, []);
+
+    // Detail View State
+    const [expandedSubId, setExpandedSubId] = useState<string | null>(null);
+    
+    // Helper to calculate days until expiry and return status
+    const getExpiryStatus = (expiryDateStr?: string) => {
+        if (!expiryDateStr) return null;
+        const expiryDate = new Date(expiryDateStr);
+        const today = new Date();
+        const diffTime = expiryDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays < 0) return { label: 'Expired', color: 'bg-red-600 text-white', days: diffDays };
+        if (diffDays <= 30) return { label: 'Expiring < 30d', color: 'bg-red-100 text-red-700 border border-red-200', days: diffDays };
+        if (diffDays <= 60) return { label: 'Expiring < 60d', color: 'bg-orange-100 text-orange-700 border border-orange-200', days: diffDays };
+        if (diffDays <= 90) return { label: 'Expiring < 90d', color: 'bg-yellow-100 text-yellow-700 border border-yellow-200', days: diffDays };
+        return { label: 'Safe', color: 'bg-emerald-50 text-emerald-700 border border-emerald-100', days: diffDays };
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -94,24 +113,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             const mapping = mappingMap.get(sub.storeId);
             const legacy = legacyMap.get(sub.storeId);
             
-            Object.entries(sub.stockData).forEach(([skuId, count]) => {
-                if ((count as number) > 0) {
-                    const sku = skuMap.get(skuId);
-                    allRows.push({
-                        'Date': dateStr,
-                        'BDE Name': sub.bdeName,
-                        'Region': sub.region,
-                        'Role': sub.role,
-                        'Store Name': sub.storeName,
-                        'Store Id': sub.storeId,
-                        'Distributor': mapping?.distributor || legacy?.distributor || 'N/A',
-                        'Super Distributor': mapping?.superDistributor || legacy?.superDistributor || 'N/A',
-                        'Product Code': skuId,
-                        'Product Name': sku?.name || 'Custom/Unknown',
-                        'Category': sku?.category || 'N/A',
-                        'Qty': count
-                    });
-                }
+            Object.entries(sub.stockData).forEach(([skuId, entry]) => {
+                const sku = skuMap.get(skuId);
+                const batches = entry.batches || [];
+                
+                batches.forEach(batch => {
+                    if ((batch.qty || 0) > 0) {
+                        allRows.push({
+                            'Date': dateStr,
+                            'BDE Name': sub.bdeName,
+                            'Region': sub.region,
+                            'Role': sub.role,
+                            'Store Name': sub.storeName,
+                            'Store Id': sub.storeId,
+                            'Distributor': mapping?.distributor || legacy?.distributor || 'N/A',
+                            'Super Distributor': mapping?.superDistributor || legacy?.superDistributor || 'N/A',
+                            'Product Code': skuId,
+                            'Product Name': sku?.name || 'Custom/Unknown',
+                            'Category': sku?.category || 'N/A',
+                            'Qty': batch.qty,
+                            'Expiry Date': batch.expiryDate || 'N/A'
+                        });
+                    }
+                });
             });
         });
 
@@ -204,8 +228,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     };
 
     const filteredSubmissions = submissions.filter(sub => {
-        if (filterRole === 'ALL') return true;
-        return sub.role === filterRole;
+        const roleMatch = filterRole === 'ALL' || sub.role === filterRole;
+        if (!roleMatch) return false;
+
+        if (expiryFilter === 'ALL') return true;
+
+        const stockEntries = Object.entries(sub.stockData);
+        return stockEntries.some(([, entry]) => {
+            return entry.batches?.some(batch => {
+                if ((batch.qty || 0) <= 0) return false;
+                const status = getExpiryStatus(batch.expiryDate);
+                if (!status) return false;
+
+                if (expiryFilter === 'CRITICAL') return status.days <= 30;
+                if (expiryFilter === 'WARNING') return status.days <= 60;
+                if (expiryFilter === 'INFO') return status.days <= 90;
+                return false;
+            });
+        });
     });
 
     return (
@@ -241,42 +281,65 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </div>
             )}
 
-            <div className="mb-4 flex flex-col sm:flex-row justify-between items-center gap-3">
-                 <div className="bg-white p-1 rounded-lg border border-slate-200 inline-flex shadow-sm">
-                    {(['ALL', 'BDE', 'BA'] as const).map(role => (
-                        <button
-                            key={role}
-                            onClick={() => setFilterRole(role)}
-                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                                filterRole === role 
-                                    ? 'bg-indigo-600 text-white shadow-sm' 
-                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                            }`}
-                        >
-                            {role === 'ALL' ? 'All' : role === 'BDE' ? 'BDE Only' : 'BA Only'}
-                        </button>
-                    ))}
-                </div>
+            <div className="mb-4 flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+                    <div className="flex flex-wrap gap-3 items-center">
+                        <div className="bg-white p-1 rounded-lg border border-slate-200 inline-flex shadow-sm">
+                            {(['ALL', 'BDE', 'BA'] as const).map(role => (
+                                <button
+                                    key={role}
+                                    onClick={() => setFilterRole(role)}
+                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                        filterRole === role 
+                                            ? 'bg-indigo-600 text-white shadow-sm' 
+                                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {role === 'ALL' ? 'All Roles' : role === 'BDE' ? 'BDE' : 'BA'}
+                                </button>
+                            ))}
+                        </div>
 
-                <div className="flex gap-2 w-full sm:w-auto">
-                    {selectedIds.size > 0 && (
+                        <div className="bg-white p-1 rounded-lg border border-slate-200 inline-flex shadow-sm">
+                            {(['ALL', 'CRITICAL', 'WARNING', 'INFO'] as const).map(filter => (
+                                <button
+                                    key={filter}
+                                    onClick={() => setExpiryFilter(filter)}
+                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                        expiryFilter === filter 
+                                            ? filter === 'CRITICAL' ? 'bg-red-600 text-white shadow-sm' :
+                                              filter === 'WARNING' ? 'bg-orange-500 text-white shadow-sm' :
+                                              filter === 'INFO' ? 'bg-yellow-500 text-white shadow-sm' :
+                                              'bg-slate-600 text-white shadow-sm'
+                                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {filter === 'ALL' ? 'All Expiry' : filter === 'CRITICAL' ? '< 30d' : filter === 'WARNING' ? '< 60d' : '< 90d'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 w-full sm:w-auto">
+                        {selectedIds.size > 0 && (
+                            <button 
+                                onClick={handleBulkDeleteClick}
+                                className="flex-1 sm:flex-none px-4 py-2 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-bold rounded-lg text-xs transition-all flex items-center justify-center gap-2"
+                            >
+                                Delete ({selectedIds.size})
+                            </button>
+                        )}
                         <button 
-                            onClick={handleBulkDeleteClick}
-                            className="flex-1 sm:flex-none px-4 py-2 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-bold rounded-lg text-xs transition-all flex items-center justify-center gap-2"
+                            onClick={handleDownloadAll}
+                            disabled={loading || !!error}
+                            className="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 text-white font-bold rounded-lg shadow-sm text-xs flex items-center justify-center gap-2 transition-transform hover:scale-105"
                         >
-                            Delete Selected ({selectedIds.size})
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Export
                         </button>
-                    )}
-                    <button 
-                        onClick={handleDownloadAll}
-                        disabled={loading || !!error}
-                        className="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 text-white font-bold rounded-lg shadow-sm text-xs flex items-center justify-center gap-2 transition-transform hover:scale-105"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Export Excel
-                    </button>
+                    </div>
                 </div>
             </div>
 
@@ -312,57 +375,129 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-slate-100">
-                                {filteredSubmissions.map((sub, idx) => (
-                                    <tr key={idx} className={`hover:bg-slate-50 transition-colors ${selectedIds.has(sub.docId) ? 'bg-indigo-50/30' : ''}`}>
-                                        <td className="px-3 py-2">
-                                            <input 
-                                                type="checkbox" 
-                                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
-                                                checked={selectedIds.has(sub.docId)}
-                                                onChange={() => toggleSelect(sub.docId)}
-                                            />
-                                        </td>
-                                        <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-500">
-                                            {formatDate(sub)}
-                                        </td>
-                                        <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-slate-900">
-                                            {sub.bdeName}
-                                            {sub.role === 'BA' && <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] bg-purple-100 text-purple-700 font-bold">BA</span>}
-                                        </td>
-                                        <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-500">
-                                            {sub.region}
-                                        </td>
-                                        <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-600">
-                                            <div className="font-medium">{sub.storeName}</div>
-                                            <div className="text-[10px] text-slate-400">{sub.storeId}</div>
-                                        </td>
-                                        <td className="px-3 py-2 whitespace-nowrap text-xs text-right font-bold text-indigo-600">
-                                            {sub.totalQty}
-                                        </td>
-                                        <td className="px-3 py-2 whitespace-nowrap text-center">
-                                            <div className="flex items-center justify-center gap-1.5">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleCopyCode(sub)}
-                                                    className="text-indigo-600 hover:text-indigo-800 font-bold text-[10px] px-2 py-1 bg-indigo-50 hover:bg-indigo-100 rounded transition-colors border border-indigo-100"
-                                                    title="Generate Import Code"
-                                                >
-                                                    {copyFeedback === sub.auditId ? 'Copied!' : 'Code'}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => handleDeleteClick(e, sub.docId)}
-                                                    className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded transition-colors"
-                                                    title="Delete Submission"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {filteredSubmissions.map((sub, idx) => {
+                                    const isExpanded = expandedSubId === sub.docId;
+                                    const stockEntries = Object.entries(sub.stockData).filter(([, entry]) => 
+                                        entry.batches?.some(b => (b.qty || 0) > 0)
+                                    );
+                                    const expiringItems = stockEntries.filter(([, entry]) => {
+                                        return entry.batches?.some(batch => {
+                                            const status = getExpiryStatus(batch.expiryDate);
+                                            return status && status.days <= 90 && (batch.qty || 0) > 0;
+                                        });
+                                    });
+
+                                    return (
+                                        <React.Fragment key={idx}>
+                                            <tr 
+                                                className={`hover:bg-slate-50 transition-colors cursor-pointer ${selectedIds.has(sub.docId) ? 'bg-indigo-50/30' : ''} ${isExpanded ? 'bg-slate-50' : ''}`}
+                                                onClick={() => setExpandedSubId(isExpanded ? null : sub.docId)}
+                                            >
+                                                <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                                                        checked={selectedIds.has(sub.docId)}
+                                                        onChange={() => toggleSelect(sub.docId)}
+                                                    />
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-500">
+                                                    {formatDate(sub)}
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-slate-900">
+                                                    <div className="flex items-center gap-2">
+                                                        {sub.bdeName}
+                                                        {sub.role === 'BA' && <span className="px-1.5 py-0.5 rounded text-[9px] bg-purple-100 text-purple-700 font-bold">BA</span>}
+                                                        {expiringItems.length > 0 && (
+                                                            <span className="flex h-2 w-2 rounded-full bg-red-500 animate-pulse" title="Contains expiring items"></span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-500">
+                                                    {sub.region}
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-600">
+                                                    <div className="font-medium">{sub.storeName}</div>
+                                                    <div className="text-[10px] text-slate-400">{sub.storeId}</div>
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-xs text-right font-bold text-indigo-600">
+                                                    {sub.totalQty}
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                                                    <div className="flex items-center justify-center gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleCopyCode(sub)}
+                                                            className="text-indigo-600 hover:text-indigo-800 font-bold text-[10px] px-2 py-1 bg-indigo-50 hover:bg-indigo-100 rounded transition-colors border border-indigo-100"
+                                                            title="Generate Import Code"
+                                                        >
+                                                            {copyFeedback === sub.auditId ? 'Copied!' : 'Code'}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => handleDeleteClick(e, sub.docId)}
+                                                            className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded transition-colors"
+                                                            title="Delete Submission"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {isExpanded && (
+                                                <tr className="bg-slate-50">
+                                                    <td colSpan={7} className="px-6 py-4">
+                                                        <div className="bg-white rounded-lg border border-slate-200 shadow-inner overflow-hidden">
+                                                            <table className="min-w-full divide-y divide-slate-100">
+                                                                <thead className="bg-slate-50">
+                                                                    <tr>
+                                                                        <th className="px-4 py-2 text-left text-[9px] font-bold text-slate-400 uppercase">Product</th>
+                                                                        <th className="px-4 py-2 text-right text-[9px] font-bold text-slate-400 uppercase">Qty</th>
+                                                                        <th className="px-4 py-2 text-left text-[9px] font-bold text-slate-400 uppercase">Expiry</th>
+                                                                        <th className="px-4 py-2 text-left text-[9px] font-bold text-slate-400 uppercase">Status</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="divide-y divide-slate-50">
+                                                                    {stockEntries.map(([skuId, entry]) => {
+                                                                        const sku = ALL_SKUS.find(s => s.id === skuId);
+                                                                        return (
+                                                                            <React.Fragment key={skuId}>
+                                                                                {entry.batches.filter(b => b.qty > 0).map((batch, bIdx) => {
+                                                                                    const status = getExpiryStatus(batch.expiryDate);
+                                                                                    return (
+                                                                                        <tr key={`${skuId}-${bIdx}`}>
+                                                                                            <td className="px-4 py-2 text-xs">
+                                                                                                <div className="font-medium text-slate-700">{sku?.name || skuId}</div>
+                                                                                                <div className="text-[10px] text-slate-400 font-mono">{skuId}</div>
+                                                                                            </td>
+                                                                                            <td className="px-4 py-2 text-xs text-right font-bold text-slate-600">{batch.qty}</td>
+                                                                                            <td className="px-4 py-2 text-xs text-slate-500">{batch.expiryDate || 'N/A'}</td>
+                                                                                            <td className="px-4 py-2 text-xs">
+                                                                                                {status ? (
+                                                                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${status.color}`}>
+                                                                                                        {status.label}
+                                                                                                    </span>
+                                                                                                ) : (
+                                                                                                    <span className="text-slate-300">—</span>
+                                                                                                )}
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                    );
+                                                                                })}
+                                                                            </React.Fragment>
+                                                                        );
+                                                                    })}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
