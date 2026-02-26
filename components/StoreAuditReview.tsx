@@ -12,9 +12,10 @@ interface StoreAuditReviewProps {
     onEdit: () => void;
     bdeInfo: BdeInfo; 
     onHome: () => void;
+    expiryEnabled?: boolean;
 }
 
-export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stockData, allSkus, onConfirm, onEdit, bdeInfo, onHome }) => {
+export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stockData, allSkus, onConfirm, onEdit, bdeInfo, onHome, expiryEnabled = true }) => {
     const totalCount = Array.from(stockData.values()).reduce((a: number, entry: StockEntry) => 
         a + (entry.batches?.reduce((sum, b) => sum + (Number(b.qty) || 0), 0) || 0), 0
     );
@@ -110,7 +111,7 @@ export const StoreAuditReview: React.FC<StoreAuditReviewProps> = ({ store, stock
                                             {entry.batches.map((batch, bIdx) => (
                                                 batch.qty > 0 && (
                                                     <span key={bIdx} className="text-[9px] bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 text-slate-500">
-                                                        {batch.qty} @ {batch.expiryDate || 'No Exp'}
+                                                        {batch.qty}{expiryEnabled ? ` @ ${batch.expiryDate || 'No Exp'}` : ''}
                                                     </span>
                                                 )
                                             ))}

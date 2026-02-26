@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { BdeInfo, UserRole } from '../types';
+import type { BdeInfo, UserRole, MasterBde } from '../types';
+import { getMasterBdes } from '../services/firebaseConfig';
 import { BDE_DETAILS } from '../constants';
 import { Button } from './common/Button';
 import { Input } from './common/Input';
@@ -12,20 +13,43 @@ interface BdeInfoFormProps {
 export const BdeInfoForm: React.FC<BdeInfoFormProps> = ({ onSubmit, onAdminClick }) => {
   const [role, setRole] = useState<UserRole>('BDE');
   const [bdeName, setBdeName] = useState('');
+  const [bdeDetails, setBdeDetails] = useState<MasterBde[]>([]);
+  const [loading, setLoading] = useState(false);
   
   // For BA Manual Input
   const [baName, setBaName] = useState('');
 
+  useEffect(() => {
+    const loadBdes = async () => {
+        setLoading(true);
+        try {
+            const data = await getMasterBdes();
+            // If we have BDEs in DB, use them.
+            if (data && data.length > 0) {
+                setBdeDetails(data);
+            } else {
+                setBdeDetails(BDE_DETAILS.map((b, i) => ({ id: String(i), ...b })));
+            }
+        } catch (e) {
+            console.error("Failed to load BDEs, falling back:", e);
+            setBdeDetails(BDE_DETAILS.map((b, i) => ({ id: String(i), ...b })));
+        } finally {
+            setLoading(false);
+        }
+    };
+    loadBdes();
+  }, []);
+
   const region = useMemo(() => {
     if (role === 'BDE') {
         if (bdeName) {
-            const bdeDetail = BDE_DETAILS.find(b => b.name === bdeName);
+            const bdeDetail = bdeDetails.find(b => b.name === bdeName);
             return bdeDetail?.region || '';
         }
         return '';
     }
     return 'Store Audit Mode';
-  }, [bdeName, role]);
+  }, [bdeName, role, bdeDetails]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,8 +96,8 @@ export const BdeInfoForm: React.FC<BdeInfoFormProps> = ({ onSubmit, onAdminClick
                         onChange={(e) => setBdeName(e.target.value)}
                     >
                         <option value="">-- Select Name --</option>
-                        {BDE_DETAILS.map(bde => (
-                        <option key={bde.name} value={bde.name}>{bde.name}</option>
+                        {bdeDetails.map(bde => (
+                        <option key={bde.id} value={bde.name}>{bde.name}</option>
                         ))}
                     </select>
                     </div>

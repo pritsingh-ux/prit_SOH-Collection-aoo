@@ -71,3 +71,41 @@ export interface DbSubmission {
     timestamp: any; // Firestore Timestamp
     dateString: string; // YYYY-MM-DD for easier indexing
 }
+
+export interface AppConfig {
+  expiryEnabled: boolean;
+  updatedAt: any;
+}
+
+export interface MasterBde {
+  id?: string;
+  name: string;
+  region: string;
+}
+
+export interface MasterProduct {
+  id: string; // SKU ID
+  name: string;
+  type: 'Natural' | 'Professional' | 'Custom';
+  category: 'Hair' | 'Skin' | 'Body' | 'Gifting' | 'Other';
+  status: 'Focus' | 'Discontinue' | 'Normal';
+}
+
+export interface MasterSuperDistributor {
+  id?: string;
+  name: string;
+}
+
+export interface MasterDistributor {
+  id?: string;
+  name: string;
+  superDistributorId: string;
+  region: string;
+}
+
+export interface MasterStore {
+  id: string; // BSRN
+  name: string;
+  region: string;
+  distributorId: string;
+}

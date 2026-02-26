@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { Store, DistributorMapping } from '../types';
+import type { Store, DistributorMapping, MasterStore } from '../types';
 import { Button } from './common/Button';
 import { Input } from './common/Input';
 import { getStoresForBde, addStoreForBde, removeStoreForBde } from '../services/storageService';
+import { getMappings, getMasterStores } from '../services/firebaseConfig';
 import { MASTER_STORES } from '../constants';
-import { getMappings } from '../services/firebaseConfig';
 
 interface StoreSelectionProps {
   bdeName: string;
@@ -20,6 +20,7 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
   });
   const [availableStores, setAvailableStores] = useState<Store[]>(() => getStoresForBde(bdeName));
   const [dbMappings, setDbMappings] = useState<DistributorMapping[]>([]);
+  const [masterStores, setMasterStores] = useState<MasterStore[]>([]);
 
   useEffect(() => {
     setAvailableStores(getStoresForBde(bdeName));
@@ -40,15 +41,37 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
   });
 
   useEffect(() => {
-    const loadDbMappings = async () => {
+    const loadData = async () => {
       try {
-          const mappings = await getMappings();
+          const [mappings, stores] = await Promise.all([
+              getMappings(),
+              getMasterStores()
+          ]);
           setDbMappings(mappings);
+          
+          // If we have a healthy amount of stores in DB, use them.
+          // Otherwise, fallback to the hardcoded list.
+          if (stores && stores.length > 5) {
+              setMasterStores(stores);
+          } else {
+              setMasterStores(MASTER_STORES.map(s => ({
+                  id: s.id,
+                  name: s.name,
+                  region: s.region,
+                  distributorId: '' 
+              })));
+          }
       } catch (e) {
-          console.error("Failed to load mappings from DB", e);
+          console.error("Failed to load data from DB, falling back", e);
+          setMasterStores(MASTER_STORES.map(s => ({
+              id: s.id,
+              name: s.name,
+              region: s.region,
+              distributorId: '' 
+          })));
       }
     };
-    loadDbMappings();
+    loadData();
   }, [bdeName]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,13 +88,13 @@ export const StoreSelection: React.FC<StoreSelectionProps> = ({ bdeName, onSelec
               m.storeId.toLowerCase().includes(searchVal)
           ).map(m => ({ id: m.storeId, name: m.storeName, distributor: m.distributor }));
 
-          // Fallback to constants if not many matches in DB
-          const constantMatches = MASTER_STORES.filter(s => 
+          // Fallback to master stores if not many matches in DB
+          const masterMatches = masterStores.filter(s => 
               (s.name.toLowerCase().includes(searchVal) || s.id.toLowerCase().includes(searchVal)) &&
               !dbMatches.some(dm => dm.id === s.id)
-          ).map(s => ({ id: s.id, name: s.name, distributor: s.distributor }));
+          ).map(s => ({ id: s.id, name: s.name, distributor: '' }));
 
-          const allMatches = [...dbMatches, ...constantMatches].slice(0, 8);
+          const allMatches = [...dbMatches, ...masterMatches].slice(0, 8);
           setFilteredSuggestions(allMatches);
           setShowSuggestions(true);
       } else {

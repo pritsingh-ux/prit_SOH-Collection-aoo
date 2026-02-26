@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, query, Timestamp, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, Timestamp, deleteDoc, doc, updateDoc, writeBatch, setDoc } from 'firebase/firestore';
 import type { DbSubmission, StoreAudit, BdeInfo, DistributorMapping, AuditLog } from '../types';
 
 // Configuration provided by user
@@ -157,7 +157,10 @@ export const saveAuditsToCloud = async (bdeInfo: BdeInfo, sessionAudits: StoreAu
                 stockObj[key] = val;
             });
             
-            const totalQty = Array.from(audit.stockData.values()).reduce((a, entry: any) => a + (entry.qty || 0), 0);
+            const totalQty = Array.from(audit.stockData.values()).reduce((a, entry: any) => {
+                const entryTotal = (entry.batches || []).reduce((sum: number, batch: any) => sum + (Number(batch.qty) || 0), 0);
+                return a + entryTotal;
+            }, 0);
 
             const submission: DbSubmission = {
                 bdeName: bdeInfo.bdeName,
@@ -254,6 +257,205 @@ export const bulkDeleteSubmissions = async (docIds: string[]): Promise<boolean> 
     } catch (e) {
         console.error("Error bulk deleting documents: ", e);
         alert("Failed to delete multiple submissions.");
+        return false;
+    }
+};
+
+// --- APP CONFIG ---
+export const getAppConfig = async (): Promise<AppConfig | null> => {
+    try {
+        const q = query(collection(db, 'config'));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) return null;
+        return { ...querySnapshot.docs[0].data(), docId: querySnapshot.docs[0].id } as AppConfig;
+    } catch (e) {
+        console.error("Error fetching app config:", e);
+        return null;
+    }
+};
+
+export const updateAppConfig = async (config: Partial<AppConfig>) => {
+    try {
+        const q = query(collection(db, 'config'));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+            await addDoc(collection(db, 'config'), {
+                expiryEnabled: true,
+                ...config,
+                updatedAt: Timestamp.now()
+            });
+        } else {
+            const configRef = doc(db, 'config', querySnapshot.docs[0].id);
+            await updateDoc(configRef, {
+                ...config,
+                updatedAt: Timestamp.now()
+            });
+        }
+        return true;
+    } catch (e) {
+        console.error("Error updating app config:", e);
+        return false;
+    }
+};
+
+// --- MASTER DATA ---
+
+const getMaster = async <T>(colName: string): Promise<T[]> => {
+    try {
+        const q = query(collection(db, colName));
+        const querySnapshot = await getDocs(q);
+        const results: T[] = [];
+        querySnapshot.forEach((doc) => {
+            results.push({ ...doc.data(), id: doc.id } as T);
+        });
+        return results;
+    } catch (e) {
+        console.error(`Error fetching ${colName}:`, e);
+        return [];
+    }
+};
+
+const saveMaster = async <T>(colName: string, data: any) => {
+    try {
+        const docRef = await addDoc(collection(db, colName), data);
+        return docRef.id;
+    } catch (e) {
+        console.error(`Error saving ${colName}:`, e);
+        return null;
+    }
+};
+
+const saveMasterWithId = async <T>(colName: string, id: string, data: any) => {
+    try {
+        await setDoc(doc(db, colName, id), data);
+        return id;
+    } catch (e) {
+        console.error(`Error saving ${colName} with id ${id}:`, e);
+        return null;
+    }
+};
+
+const updateMaster = async (colName: string, id: string, data: any) => {
+    try {
+        await updateDoc(doc(db, colName, id), data);
+        return true;
+    } catch (e) {
+        console.error(`Error updating ${colName}:`, e);
+        return false;
+    }
+};
+
+const deleteMaster = async (colName: string, id: string) => {
+    try {
+        await deleteDoc(doc(db, colName, id));
+        return true;
+    } catch (e) {
+        console.error(`Error deleting ${colName}:`, e);
+        return false;
+    }
+};
+
+export const getMasterBdes = () => getMaster<MasterBde>('masterBdes');
+export const saveMasterBde = (data: Omit<MasterBde, 'id'>) => saveMaster('masterBdes', data);
+export const updateMasterBde = (id: string, data: Partial<MasterBde>) => updateMaster('masterBdes', id, data);
+export const deleteMasterBde = (id: string) => deleteMaster('masterBdes', id);
+
+export const getMasterProducts = () => getMaster<MasterProduct>('masterProducts');
+export const saveMasterProduct = (data: MasterProduct) => {
+    const { id, ...rest } = data;
+    return saveMasterWithId('masterProducts', id, rest);
+};
+export const updateMasterProduct = (id: string, data: Partial<MasterProduct>) => updateMaster('masterProducts', id, data);
+export const deleteMasterProduct = (id: string) => deleteMaster('masterProducts', id);
+
+export const getMasterSuperDistributors = () => getMaster<MasterSuperDistributor>('masterSuperDistributors');
+export const saveMasterSuperDistributor = (data: Omit<MasterSuperDistributor, 'id'>) => saveMaster('masterSuperDistributors', data);
+export const updateMasterSuperDistributor = (id: string, data: Partial<MasterSuperDistributor>) => updateMaster('masterSuperDistributors', id, data);
+export const deleteMasterSuperDistributor = (id: string) => deleteMaster('masterSuperDistributors', id);
+
+export const getMasterDistributors = () => getMaster<MasterDistributor>('masterDistributors');
+export const saveMasterDistributor = (data: Omit<MasterDistributor, 'id'>) => saveMaster('masterDistributors', data);
+export const updateMasterDistributor = (id: string, data: Partial<MasterDistributor>) => updateMaster('masterDistributors', id, data);
+export const deleteMasterDistributor = (id: string) => deleteMaster('masterDistributors', id);
+
+export const getMasterStores = () => getMaster<MasterStore>('masterStores');
+export const saveMasterStore = (data: MasterStore) => {
+    const { id, ...rest } = data;
+    return saveMasterWithId('masterStores', id, rest);
+};
+export const updateMasterStore = (id: string, data: Partial<MasterStore>) => updateMaster('masterStores', id, data);
+export const deleteMasterStore = (id: string) => deleteMaster('masterStores', id);
+
+export const initializeMasterData = async (data: {
+    bdes: any[],
+    products: any[],
+    superDists: any[],
+    dists: any[],
+    stores: any[]
+}) => {
+    try {
+        const batch = writeBatch(db);
+        
+        // 1. Super Distributors
+        const superDistRefs = new Map();
+        data.superDists.forEach(sd => {
+            const ref = doc(collection(db, 'masterSuperDistributors'));
+            batch.set(ref, sd);
+            superDistRefs.set(sd.name, ref.id);
+        });
+
+        // 2. Distributors
+        const distRefs = new Map();
+        data.dists.forEach(d => {
+            const ref = doc(collection(db, 'masterDistributors'));
+            const superDistId = superDistRefs.get(d.superDistName) || '';
+            const { superDistName, ...distData } = d;
+            batch.set(ref, { ...distData, superDistributorId: superDistId });
+            distRefs.set(d.name, ref.id);
+        });
+
+        // 3. BDEs
+        data.bdes.forEach(bde => {
+            const ref = doc(collection(db, 'masterBdes'));
+            batch.set(ref, bde);
+        });
+
+        // 4. Products
+        data.products.forEach(p => {
+            const { id, ...rest } = p;
+            const ref = doc(db, 'masterProducts', id);
+            batch.set(ref, rest);
+        });
+
+        // 5. Stores
+        data.stores.forEach(s => {
+            const { id, distributorName, ...storeData } = s;
+            const distId = distRefs.get(distributorName) || '';
+            const ref = doc(db, 'masterStores', id);
+            batch.set(ref, { ...storeData, distributorId: distId });
+        });
+
+        await batch.commit();
+        return true;
+    } catch (e) {
+        console.error("Initialization failed:", e);
+        throw e;
+    }
+};
+
+export const clearMasterData = async () => {
+    try {
+        const collections = ['masterBdes', 'masterProducts', 'masterSuperDistributors', 'masterDistributors', 'masterStores'];
+        for (const colName of collections) {
+            const q = query(collection(db, colName));
+            const snapshot = await getDocs(q);
+            const batch = writeBatch(db);
+            snapshot.forEach(d => batch.delete(d.ref));
+            await batch.commit();
+        }
+        return true;
+    } catch (e) {
+        console.error("Clear master data failed:", e);
         return false;
     }
 };

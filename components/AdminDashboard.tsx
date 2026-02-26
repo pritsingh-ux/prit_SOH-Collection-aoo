@@ -1,14 +1,17 @@
 // @ts-nocheck
 import React, { useEffect, useState } from 'react';
-import { getAllSubmissions, deleteSubmissionFromCloud, bulkDeleteSubmissions, getMappings } from '../services/firebaseConfig';
+import { getAllSubmissions, deleteSubmissionFromCloud, bulkDeleteSubmissions, getMappings, getAppConfig, updateAppConfig } from '../services/firebaseConfig';
 import { generateShareCode } from '../services/shareService';
-import type { DbSubmission, Sku, Store, StockData, DistributorMapping } from '../types';
+import type { DbSubmission, Sku, Store, StockData, DistributorMapping, AppConfig } from '../types';
 import { ALL_SKUS, MASTER_STORES } from '../constants';
+import { Calendar as CalendarIcon, RefreshCw, LogOut, Download, Trash2, Copy, Check, Settings } from 'lucide-react';
 
 declare const XLSX: any; // SheetJS
 
 interface AdminDashboardProps {
     onLogout: () => void;
+    appConfig: AppConfig | null;
+    onConfigUpdate: (config: AppConfig) => void;
 }
 
 // Helper to safely format dates regardless of what Firebase sends back
@@ -24,7 +27,7 @@ const formatDate = (sub: DbSubmission): string => {
     }
 };
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, appConfig, onConfigUpdate }) => {
     const [submissions, setSubmissions] = useState<DbSubmission[]>([]);
     const [mappings, setMappings] = useState<DistributorMapping[]>([]);
     const [loading, setLoading] = useState(true);
@@ -256,19 +259,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     <p className="text-slate-400 text-xs">View and export all BDE submissions</p>
                 </div>
                 <div className="flex gap-2">
+                    {/* Expiry Toggle */}
+                    <div className="bg-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-3 border border-slate-600">
+                        <div className="flex items-center gap-2">
+                            <CalendarIcon size={14} className={appConfig?.expiryEnabled ? 'text-emerald-400' : 'text-slate-400'} />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Expiry Logic</span>
+                        </div>
+                        <button 
+                            onClick={async () => {
+                                const currentVal = appConfig?.expiryEnabled ?? true;
+                                const newVal = !currentVal;
+                                const success = await updateAppConfig({ expiryEnabled: newVal });
+                                if (success) {
+                                    onConfigUpdate(appConfig ? { ...appConfig, expiryEnabled: newVal } : { expiryEnabled: newVal } as AppConfig);
+                                }
+                            }}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${appConfig?.expiryEnabled !== false ? 'bg-emerald-500' : 'bg-slate-500'}`}
+                        >
+                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${appConfig?.expiryEnabled !== false ? 'translate-x-5' : 'translate-x-1'}`} />
+                        </button>
+                    </div>
+
                     <button 
                         onClick={loadData}
-                        className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-medium transition-colors"
+                        className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
                     >
+                        <RefreshCw size={14} />
                         Refresh
                     </button>
                     <button 
                         onClick={onLogout}
                         className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
+                        <LogOut size={14} />
                         Logout
                     </button>
                 </div>
@@ -300,24 +323,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             ))}
                         </div>
 
-                        <div className="bg-white p-1 rounded-lg border border-slate-200 inline-flex shadow-sm">
-                            {(['ALL', 'CRITICAL', 'WARNING', 'INFO'] as const).map(filter => (
-                                <button
-                                    key={filter}
-                                    onClick={() => setExpiryFilter(filter)}
-                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                                        expiryFilter === filter 
-                                            ? filter === 'CRITICAL' ? 'bg-red-600 text-white shadow-sm' :
-                                              filter === 'WARNING' ? 'bg-orange-500 text-white shadow-sm' :
-                                              filter === 'INFO' ? 'bg-yellow-500 text-white shadow-sm' :
-                                              'bg-slate-600 text-white shadow-sm'
-                                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                                    }`}
-                                >
-                                    {filter === 'ALL' ? 'All Expiry' : filter === 'CRITICAL' ? '< 30d' : filter === 'WARNING' ? '< 60d' : '< 90d'}
-                                </button>
-                            ))}
-                        </div>
+                        {appConfig?.expiryEnabled !== false && (
+                            <div className="bg-white p-1 rounded-lg border border-slate-200 inline-flex shadow-sm">
+                                {(['ALL', 'CRITICAL', 'WARNING', 'INFO'] as const).map(filter => (
+                                    <button
+                                        key={filter}
+                                        onClick={() => setExpiryFilter(filter)}
+                                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                            expiryFilter === filter 
+                                                ? filter === 'CRITICAL' ? 'bg-red-600 text-white shadow-sm' :
+                                                  filter === 'WARNING' ? 'bg-orange-500 text-white shadow-sm' :
+                                                  filter === 'INFO' ? 'bg-yellow-500 text-white shadow-sm' :
+                                                  'bg-slate-600 text-white shadow-sm'
+                                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        {filter === 'ALL' ? 'All Expiry' : filter === 'CRITICAL' ? '< 30d' : filter === 'WARNING' ? '< 60d' : '< 90d'}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex gap-2 w-full sm:w-auto">

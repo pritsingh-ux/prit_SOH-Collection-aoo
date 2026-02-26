@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useRef } from 'react';
 import type { Sku, StockData, StockEntry, StockBatch } from '../types';
-import { SKU_CATEGORIES } from '../constants';
+import { SKU_CATEGORIES, ALL_SKUS } from '../constants';
 import { Button } from './common/Button';
 import { Input } from './common/Input';
 import { ModernDatePicker } from './common/ModernDatePicker';
-import { Plus, Trash2, Calendar as CalendarIcon, AlertCircle, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import { Plus, Minus, Trash2, Calendar as CalendarIcon, AlertCircle, ChevronDown, ChevronUp, Copy, Check, Search } from 'lucide-react';
 import { format, isPast, isToday, addDays, parseISO } from 'date-fns';
+import { getMasterProducts } from '../services/firebaseConfig';
 
 interface StockEntryListProps {
   initialStockData: StockData;
@@ -14,12 +15,38 @@ interface StockEntryListProps {
   onBack: () => void;
   onAddSku: (sku: Sku) => void;
   retailerName: string;
+  expiryEnabled?: boolean;
 }
 
-export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData, availableSkus, onSubmit, onBack, onAddSku, retailerName }) => {
+export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData, availableSkus, onSubmit, onBack, onAddSku, retailerName, expiryEnabled = true }) => {
   const [stockData, setStockData] = useState<StockData>(() => new Map(initialStockData));
+  const [masterProducts, setMasterProducts] = useState<Sku[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const [errorSkus, setErrorSkus] = useState<string[]>([]);
+
+  React.useEffect(() => {
+    const loadProducts = async () => {
+        setLoadingProducts(true);
+        try {
+            const data = await getMasterProducts();
+            // If we have a healthy amount of products in DB, use them.
+            // Otherwise, fallback to the hardcoded list provided via props.
+            if (data && data.length > 10) {
+                setMasterProducts(data);
+            } else {
+                setMasterProducts(availableSkus);
+            }
+        } catch (e) {
+            console.error("Failed to load master products, falling back:", e);
+            setMasterProducts(availableSkus);
+        } finally {
+            setLoadingProducts(false);
+        }
+    };
+    loadProducts();
+  }, [availableSkus]);
   const [expandedSkus, setExpandedSkus] = useState<Set<string>>(new Set());
   
   // Bulk Expiry State
@@ -31,6 +58,23 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
   const [newItemCode, setNewItemCode] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const listTopRef = useRef<HTMLDivElement>(null);
+  const listBottomRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    listBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const scrollToSku = (skuId: string) => {
+    const element = document.getElementById(`sku-${skuId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const toggleExpand = (skuId: string) => {
     setExpandedSkus(prev => {
@@ -45,11 +89,15 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
     setStockData(prev => {
       const newMap = new Map(prev);
       const entry = newMap.get(skuId) || { batches: [] };
-      const newBatches = [...entry.batches];
+      let newBatches = [...entry.batches];
       
       if (batchIndex >= newBatches.length) {
-        // Should not happen with current UI but for safety
-        return prev;
+        if (batchIndex === 0) {
+            // Add a default batch if none exists
+            newBatches = [{ qty: 0, expiryDate: '' }];
+        } else {
+            return prev;
+        }
       }
 
       newBatches[batchIndex] = { ...newBatches[batchIndex], ...updates };
@@ -158,19 +206,19 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
   };
 
   const filteredSkus = useMemo(() => {
-    let skus = availableSkus;
+    let skus = masterProducts;
     if (activeCategory !== 'All') {
       skus = skus.filter(sku => sku.category === activeCategory);
     }
     if (searchTerm) {
       const lowerTerm = searchTerm.toLowerCase();
-      skus = skus.filter(sku =>
-        sku.name.toLowerCase().includes(lowerTerm) ||
+      skus = skus.filter(sku => 
+        sku.name.toLowerCase().includes(lowerTerm) || 
         sku.id.toLowerCase().includes(lowerTerm)
       );
     }
     return skus;
-  }, [searchTerm, activeCategory, availableSkus]);
+  }, [masterProducts, activeCategory, searchTerm]);
   
   const totalItems = Array.from(stockData.values()).reduce((sum, entry) => 
     sum + (entry.batches?.reduce((bSum, b) => bSum + (Number(b.qty) || 0), 0) || 0), 0
@@ -207,7 +255,25 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
   };
 
   return (
-    <div className="animate-fade-in pb-48 relative bg-slate-50 min-h-screen">
+    <div className="animate-fade-in pb-48 relative bg-slate-50 min-h-screen" ref={listTopRef}>
+        {/* Floating Scroll Buttons */}
+        <div className="fixed bottom-32 right-4 flex flex-col gap-3 z-50">
+            <button 
+                onClick={scrollToTop}
+                className="p-3 bg-white/90 backdrop-blur-md text-slate-600 rounded-2xl shadow-xl border border-slate-200 hover:bg-white transition-all active:scale-95"
+                title="Scroll to Top"
+            >
+                <ChevronUp size={20} />
+            </button>
+            <button 
+                onClick={scrollToBottom}
+                className="p-3 bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
+                title="Scroll to Bottom"
+            >
+                <ChevronDown size={20} />
+            </button>
+        </div>
+
         {/* Add Custom Item Modal */}
         {isAddModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -312,24 +378,26 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
                     </div>
 
                     {/* Bulk Expiry Tool - Concise Version */}
-                    <div className="flex items-center gap-2 px-1">
-                        <div className="flex-1 flex items-center gap-2 bg-slate-100/50 border border-slate-200 rounded-xl px-3 py-1">
-                            <CalendarIcon size={14} className="text-slate-400" />
-                            <ModernDatePicker 
-                                selected={bulkExpiryDate}
-                                onChange={setBulkExpiryDate}
-                                placeholder="Bulk Expiry"
-                                className="!bg-transparent !border-none !py-1 !text-xs font-bold"
-                            />
+                    {expiryEnabled && (
+                        <div className="flex items-center gap-2 px-1">
+                            <div className="flex-1 flex items-center gap-2 bg-slate-100/50 border border-slate-200 rounded-xl px-3 py-1">
+                                <CalendarIcon size={14} className="text-slate-400" />
+                                <ModernDatePicker 
+                                    selected={bulkExpiryDate}
+                                    onChange={setBulkExpiryDate}
+                                    placeholder="Bulk Expiry"
+                                    className="!bg-transparent !border-none !py-1 !text-xs font-bold"
+                                />
+                            </div>
+                            <button 
+                                onClick={applyBulkExpiry}
+                                disabled={!bulkExpiryDate}
+                                className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-100 disabled:opacity-30 transition-all border border-indigo-100"
+                            >
+                                Apply All
+                            </button>
                         </div>
-                        <button 
-                            onClick={applyBulkExpiry}
-                            disabled={!bulkExpiryDate}
-                            className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-100 disabled:opacity-30 transition-all border border-indigo-100"
-                        >
-                            Apply All
-                        </button>
-                    </div>
+                    )}
                </div>
              </div>
 
@@ -357,52 +425,98 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
                     const entry = stockData.get(sku.id) || { batches: [] };
                     const isExpanded = expandedSkus.has(sku.id);
                     const totalSkuQty = entry.batches.reduce((sum, b) => sum + b.qty, 0);
+                    const hasError = errorSkus.includes(sku.id);
                     
                     return (
-                        <div key={sku.id} className={`bg-white rounded-[2rem] border transition-all ${totalSkuQty > 0 ? 'border-indigo-200 shadow-md ring-1 ring-indigo-50' : 'border-slate-100 shadow-sm'}`}>
+                        <div 
+                            key={sku.id} 
+                            id={`sku-${sku.id}`}
+                            className={`bg-white transition-all ${expiryEnabled ? 'rounded-[2rem] border' : 'rounded-2xl border-b border-slate-100'} ${
+                                hasError ? 'border-red-500 ring-2 ring-red-100' : 
+                                totalSkuQty > 0 ? 'border-indigo-200 shadow-md ring-1 ring-indigo-50' : 
+                                'border-slate-100 shadow-sm'
+                            }`}
+                        >
                             {/* SKU Header */}
-                            <div className="p-5">
-                                <div className="flex items-start justify-between gap-4 mb-2">
+                            <div className={expiryEnabled ? "p-5" : "p-4"}>
+                                <div className={`flex ${expiryEnabled ? 'items-start' : 'items-center'} justify-between gap-2`}>
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1.5">
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex-shrink-0">{sku.id}</span>
-                                            <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter flex-shrink-0 ${sku.type === 'Professional' ? 'bg-slate-800 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
+                                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest flex-shrink-0">{sku.id}</span>
+                                            <span className={`text-[7px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-tighter flex-shrink-0 ${sku.type === 'Professional' ? 'bg-slate-800 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
                                                 {sku.type}
                                             </span>
                                         </div>
-                                        <h4 className="text-sm font-bold text-slate-800 leading-tight line-clamp-2">{sku.name}</h4>
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-4 flex-shrink-0">
-                                        {totalSkuQty > 0 && (
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-xl font-bold text-indigo-600 leading-none">{totalSkuQty}</span>
-                                                <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mt-1">Total Units</span>
+                                        {hasError && (
+                                            <div className="mb-1.5">
+                                                <span className="inline-flex items-center gap-1 text-[7px] font-bold text-red-500 uppercase bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
+                                                    <AlertCircle size={10} />
+                                                    Expiry Missing
+                                                </span>
                                             </div>
                                         )}
-                                        <div className="flex items-center gap-2">
-                                            <button 
-                                                onClick={() => addBatch(sku.id)}
-                                                className="p-2.5 bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all border border-slate-100"
-                                                title="Add Batch"
-                                            >
-                                                <Plus size={18} />
-                                            </button>
-                                            {entry.batches.length > 0 && (
-                                                <button 
-                                                    onClick={() => toggleExpand(sku.id)}
-                                                    className="p-2.5 bg-slate-50 text-slate-400 hover:bg-slate-100 rounded-xl transition-all border border-slate-100"
-                                                >
-                                                    {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                                                </button>
-                                            )}
-                                        </div>
+                                        <h4 className={`${expiryEnabled ? 'text-sm' : 'text-xs'} font-bold text-slate-800 leading-tight line-clamp-2`}>{sku.name}</h4>
                                     </div>
+                                    
+                                    {!expiryEnabled ? (
+                                        <div className="w-32 flex-shrink-0 ml-2">
+                                            {(entry.batches.length > 0 ? [entry.batches[0]] : [{qty: 0, expiryDate: ''}]).map((batch, idx) => (
+                                                <div key={idx} className="flex items-center bg-slate-50 border border-slate-200 rounded-xl overflow-hidden h-10">
+                                                    <button 
+                                                        onClick={() => handleQtyChange(sku.id, idx, String(Math.max(0, (batch.qty || 0) - 1)))}
+                                                        className="px-3 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors h-full"
+                                                    >
+                                                        <Minus size={14} />
+                                                    </button>
+                                                    <input 
+                                                        type="number"
+                                                        min="0"
+                                                        value={batch.qty || ''}
+                                                        onChange={(e) => handleQtyChange(sku.id, idx, e.target.value)}
+                                                        placeholder="0"
+                                                        className="w-full bg-transparent text-sm font-bold focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    />
+                                                    <button 
+                                                        onClick={() => handleQtyChange(sku.id, idx, String((batch.qty || 0) + 1))}
+                                                        className="px-3 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors h-full"
+                                                    >
+                                                        <Plus size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+                                            {totalSkuQty > 0 && (
+                                                <div className="flex flex-col items-center min-w-[40px]">
+                                                    <span className="text-xl font-bold text-indigo-600 leading-none">{totalSkuQty}</span>
+                                                    <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mt-1 whitespace-nowrap">Total Units</span>
+                                                </div>
+                                            )}
+                                            <div className="flex items-center gap-2">
+                                                <button 
+                                                    onClick={() => addBatch(sku.id)}
+                                                    className="p-2.5 bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all border border-slate-100"
+                                                    title="Add Batch"
+                                                >
+                                                    <Plus size={18} />
+                                                </button>
+                                                {entry.batches.length > 0 && (
+                                                    <button 
+                                                        onClick={() => toggleExpand(sku.id)}
+                                                        className="p-2.5 bg-slate-50 text-slate-400 hover:bg-slate-100 rounded-xl transition-all border border-slate-100"
+                                                    >
+                                                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* Batches List */}
-                            {(isExpanded || entry.batches.length > 0) && (
+                            {/* Batches List (Only for Expiry Mode) */}
+                            {expiryEnabled && (isExpanded || entry.batches.length > 0) && (
                                 <div className={`px-5 pb-5 space-y-3 ${!isExpanded && 'hidden'}`}>
                                     <div className="h-px bg-slate-100 mb-4"></div>
                                     {entry.batches.map((batch, idx) => {
@@ -417,16 +531,30 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
                                                         error={status === 'expired' || status === 'critical'}
                                                     />
                                                 </div>
-                                                <div className="w-24">
+                                                <div className="w-32">
                                                     <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Quantity</label>
-                                                    <input 
-                                                        type="number"
-                                                        min="0"
-                                                        value={batch.qty || ''}
-                                                        onChange={(e) => handleQtyChange(sku.id, idx, e.target.value)}
-                                                        placeholder="0"
-                                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-center"
-                                                    />
+                                                    <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
+                                                        <button 
+                                                            onClick={() => handleQtyChange(sku.id, idx, String(Math.max(0, (batch.qty || 0) - 1)))}
+                                                            className="px-4 py-3 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                                                        >
+                                                            <Minus size={18} />
+                                                        </button>
+                                                        <input 
+                                                            type="number"
+                                                            min="0"
+                                                            value={batch.qty || ''}
+                                                            onChange={(e) => handleQtyChange(sku.id, idx, e.target.value)}
+                                                            placeholder="0"
+                                                            className="w-full bg-transparent py-3 text-base font-bold focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                        />
+                                                        <button 
+                                                            onClick={() => handleQtyChange(sku.id, idx, String((batch.qty || 0) + 1))}
+                                                            className="px-4 py-3 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                                                        >
+                                                            <Plus size={18} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <div className="flex items-center gap-2 pb-1">
                                                     {status && (
@@ -507,32 +635,42 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
                 <div className="flex-[2]">
                     <Button 
                         className="w-full py-4 text-sm sm:text-base shadow-2xl shadow-indigo-200/50 font-bold uppercase tracking-widest"
-                        onClick={() => {
+                         onClick={() => {
                             // Validation: All batches with qty > 0 must have expiry date
-                            let isValid = true;
-                            stockData.forEach((entry) => {
-                                entry.batches.forEach(b => {
-                                    if (b.qty > 0 && !b.expiryDate) isValid = false;
+                            if (expiryEnabled) {
+                                const missingExpirySkus: string[] = [];
+                                stockData.forEach((entry, skuId) => {
+                                    entry.batches.forEach(b => {
+                                        if (b.qty > 0 && !b.expiryDate) {
+                                            if (!missingExpirySkus.includes(skuId)) {
+                                                missingExpirySkus.push(skuId);
+                                            }
+                                        }
+                                    });
                                 });
-                            });
 
-                            if (!isValid) {
-                                alert("Please provide an expiry date for all items with quantity.");
-                                return;
-                            }
+                                if (missingExpirySkus.length > 0) {
+                                    setErrorSkus(missingExpirySkus);
+                                    alert(`Please provide an expiry date for ${missingExpirySkus.length} items with quantity.`);
+                                    scrollToSku(missingExpirySkus[0]);
+                                    return;
+                                }
+                                
+                                setErrorSkus([]);
 
-                            // Validation: Expiry date cannot be in the past
-                            const todayStr = format(new Date(), 'yyyy-MM-dd');
-                            let hasPastExpiry = false;
-                            stockData.forEach((entry) => {
-                                entry.batches?.forEach(b => {
-                                    if ((Number(b.qty) || 0) > 0 && b.expiryDate && b.expiryDate < todayStr) hasPastExpiry = true;
+                                // Validation: Expiry date cannot be in the past
+                                const todayStr = format(new Date(), 'yyyy-MM-dd');
+                                let hasPastExpiry = false;
+                                stockData.forEach((entry) => {
+                                    entry.batches?.forEach(b => {
+                                        if ((Number(b.qty) || 0) > 0 && b.expiryDate && b.expiryDate < todayStr) hasPastExpiry = true;
+                                    });
                                 });
-                            });
-                            
-                            if (hasPastExpiry) {
-                                alert("Some items have expiry dates in the past. Please correct them.");
-                                return;
+                                
+                                if (hasPastExpiry) {
+                                    alert("Some items have expiry dates in the past. Please correct them.");
+                                    return;
+                                }
                             }
 
                             onSubmit(stockData);
@@ -558,6 +696,8 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
             .animate-slide-up { animation: slide-up 0.3s ease-out forwards; }
             .no-scrollbar::-webkit-scrollbar { display: none; }
         `}} />
+        {/* Bottom anchor for scroll */}
+        <div ref={listBottomRef} className="h-1" />
     </div>
   );
 };

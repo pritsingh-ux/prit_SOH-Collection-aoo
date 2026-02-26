@@ -6,6 +6,8 @@ import type { BdeInfo, StockData, Sku, Store, StoreAudit } from './types';
 import { ALL_SKUS } from './constants';
 import { serializeState, loadSessionState, clearSessionState } from './services/storageService';
 import { parseShareCode } from './services/shareService';
+import { getAppConfig } from './services/firebaseConfig';
+import type { AppConfig } from './types';
 
 // Components
 import { BdeInfoForm } from './components/BdeInfoForm';
@@ -17,15 +19,17 @@ import { ReviewAndExport } from './components/ReviewAndExport';
 import { AdminLogin } from './components/AdminLogin';
 import { AdminDashboard } from './components/AdminDashboard';
 import { DistributorMappingMaster } from './components/DistributorMappingMaster';
+import { MasterDataManager } from './components/MasterDataManager';
 import { Button } from './components/common/Button';
 
-type AppStep = 'BDE_LOGIN' | 'DASHBOARD' | 'STORE_SELECT' | 'STOCK_ENTRY' | 'REVIEW_SINGLE' | 'REVIEW_SESSION' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'ADMIN_MAPPINGS';
+type AppStep = 'BDE_LOGIN' | 'DASHBOARD' | 'STORE_SELECT' | 'STOCK_ENTRY' | 'REVIEW_SINGLE' | 'REVIEW_SESSION' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD' | 'ADMIN_MAPPINGS' | 'ADMIN_MASTER_DATA';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(() => {
     const saved = loadSessionState();
     return (saved?.step as AppStep) || 'BDE_LOGIN';
   });
+  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [bdeInfo, setBdeInfo] = useState<BdeInfo | null>(() => {
     const saved = loadSessionState();
     return saved?.bdeInfo || null;
@@ -58,7 +62,14 @@ const App: React.FC = () => {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importCode, setImportCode] = useState('');
 
-  // 1. Load Session on Mount - Removed as we use lazy initializers
+  // 1. Load Session on Mount
+  useEffect(() => {
+    const fetchConfig = async () => {
+      const config = await getAppConfig();
+      setAppConfig(config);
+    };
+    fetchConfig();
+  }, []);
 
   // 2. Auto-Save on Change
   useEffect(() => {
@@ -260,37 +271,80 @@ const App: React.FC = () => {
       case 'ADMIN_DASHBOARD':
           return (
             <div className="space-y-6">
-                <div className="flex bg-white p-1 rounded-lg border border-slate-200 w-fit">
+                <div className="flex bg-white p-1 rounded-lg border border-slate-200 w-fit overflow-x-auto no-scrollbar">
                     <button 
                         onClick={() => setStep('ADMIN_DASHBOARD')}
-                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all bg-indigo-600 text-white shadow-sm`}
+                        className={`px-4 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap bg-indigo-600 text-white shadow-sm`}
                     >
-                        Master Database
+                        Submission Database
+                    </button>
+                    <button 
+                        onClick={() => setStep('ADMIN_MASTER_DATA')}
+                        className={`px-4 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-700 hover:bg-slate-50`}
+                    >
+                        Master Data
                     </button>
                     <button 
                         onClick={() => setStep('ADMIN_MAPPINGS')}
-                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all text-slate-500 hover:text-slate-700 hover:bg-slate-50`}
+                        className={`px-4 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-700 hover:bg-slate-50`}
                     >
                         Distributor Mappings
                     </button>
                 </div>
-                <AdminDashboard onLogout={() => setStep('BDE_LOGIN')} />
+                <AdminDashboard 
+                    onLogout={() => setStep('BDE_LOGIN')} 
+                    appConfig={appConfig}
+                    onConfigUpdate={setAppConfig}
+                />
+            </div>
+          );
+
+      case 'ADMIN_MASTER_DATA':
+          return (
+            <div className="space-y-6">
+                <div className="flex bg-white p-1 rounded-lg border border-slate-200 w-fit overflow-x-auto no-scrollbar">
+                    <button 
+                        onClick={() => setStep('ADMIN_DASHBOARD')}
+                        className={`px-4 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-700 hover:bg-slate-50`}
+                    >
+                        Submission Database
+                    </button>
+                    <button 
+                        onClick={() => setStep('ADMIN_MASTER_DATA')}
+                        className={`px-4 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap bg-indigo-600 text-white shadow-sm`}
+                    >
+                        Master Data
+                    </button>
+                    <button 
+                        onClick={() => setStep('ADMIN_MAPPINGS')}
+                        className={`px-4 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-700 hover:bg-slate-50`}
+                    >
+                        Distributor Mappings
+                    </button>
+                </div>
+                <MasterDataManager />
             </div>
           );
 
       case 'ADMIN_MAPPINGS':
           return (
             <div className="space-y-6">
-                <div className="flex bg-white p-1 rounded-lg border border-slate-200 w-fit">
+                <div className="flex bg-white p-1 rounded-lg border border-slate-200 w-fit overflow-x-auto no-scrollbar">
                     <button 
                         onClick={() => setStep('ADMIN_DASHBOARD')}
-                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all text-slate-500 hover:text-slate-700 hover:bg-slate-50`}
+                        className={`px-4 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-700 hover:bg-slate-50`}
                     >
-                        Master Database
+                        Submission Database
+                    </button>
+                    <button 
+                        onClick={() => setStep('ADMIN_MASTER_DATA')}
+                        className={`px-4 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-700 hover:bg-slate-50`}
+                    >
+                        Master Data
                     </button>
                     <button 
                         onClick={() => setStep('ADMIN_MAPPINGS')}
-                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all bg-indigo-600 text-white shadow-sm`}
+                        className={`px-4 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap bg-indigo-600 text-white shadow-sm`}
                     >
                         Distributor Mappings
                     </button>
@@ -332,6 +386,7 @@ const App: React.FC = () => {
                 onBack={() => setStep('DASHBOARD')}
                 onAddSku={handleAddCustomSku}
                 retailerName={currentStore.name}
+                expiryEnabled={appConfig?.expiryEnabled !== false}
             />
         ) : null;
 
@@ -345,6 +400,7 @@ const App: React.FC = () => {
                 onEdit={handleEditAudit}
                 bdeInfo={bdeInfo}
                 onHome={handleLogout}
+                expiryEnabled={appConfig?.expiryEnabled !== false}
             />
         ) : null;
 
