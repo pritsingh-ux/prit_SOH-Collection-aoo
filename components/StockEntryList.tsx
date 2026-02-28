@@ -314,63 +314,63 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
         )}
 
         {/* Sticky Header */}
-        <div className="sticky top-0 bg-slate-50/80 backdrop-blur-md z-20 pb-4">
-             <div className="bg-white shadow-sm p-5 rounded-b-[2.5rem] mb-4 border-b border-slate-100">
-               <div className="flex items-center gap-3 mb-4">
+        <div className="sticky top-0 bg-slate-50/80 backdrop-blur-md z-20 pb-2">
+             <div className="bg-white shadow-sm p-3 sm:p-4 rounded-b-[1.5rem] mb-2 border-b border-slate-100">
+               <div className="flex items-center gap-2 mb-3">
                  <button 
                     onClick={onBack}
-                    className="p-2 -ml-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-xl transition-all"
+                    className="p-1.5 -ml-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-lg transition-all"
                  >
-                    <Trash2 size={18} className="rotate-45" />
+                    <Trash2 size={16} className="rotate-45" />
                  </button>
                  <div className="flex-1 min-w-0">
-                    <h2 className="text-lg font-bold text-slate-800 leading-tight truncate">{retailerName}</h2>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Live Entry</p>
+                    <h2 className="text-base font-bold text-slate-800 leading-tight truncate">{retailerName}</h2>
+                    <div className="flex items-center gap-1 mt-0.5">
+                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Live Entry</p>
                     </div>
                  </div>
-                 <div className="flex gap-2">
-                   <div className="bg-indigo-50 px-3 py-1.5 rounded-xl text-center border border-indigo-100">
-                       <span className="block text-sm font-bold text-indigo-600 leading-none">{itemsFilled}</span>
-                       <span className="text-[7px] font-bold text-indigo-400 uppercase tracking-widest">SKUs</span>
+                 <div className="flex gap-1.5">
+                   <div className="bg-indigo-50 px-2 py-1 rounded-lg text-center border border-indigo-100 min-w-[45px]">
+                       <span className="block text-xs font-bold text-indigo-600 leading-none">{itemsFilled}</span>
+                       <span className="text-[6px] font-bold text-indigo-400 uppercase tracking-tighter">SKUs</span>
                    </div>
-                   <div className="bg-emerald-50 px-3 py-1.5 rounded-xl text-center border border-emerald-100">
-                       <span className="block text-sm font-bold text-emerald-600 leading-none">{totalItems}</span>
-                       <span className="text-[7px] font-bold text-emerald-400 uppercase tracking-widest">Units</span>
+                   <div className="bg-emerald-50 px-2 py-1 rounded-lg text-center border border-emerald-100 min-w-[45px]">
+                       <span className="block text-xs font-bold text-emerald-600 leading-none">{totalItems}</span>
+                       <span className="text-[6px] font-bold text-indigo-400 uppercase tracking-tighter">Units</span>
                    </div>
                  </div>
                </div>
                
-               <div className="flex flex-col gap-3">
+               <div className="flex flex-col gap-2">
                     <div className="flex gap-2">
                         <div className="relative flex-1">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <CalendarIcon size={14} className="text-slate-300" />
+                            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                                <CalendarIcon size={12} className="text-slate-300" />
                             </div>
                             <input
                                 type="text"
                                 placeholder="Search..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white text-slate-900 transition-all outline-none"
+                                className="w-full pl-8 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white text-slate-900 transition-all outline-none"
                             />
                         </div>
-                        <div className="flex gap-1.5">
+                        <div className="flex gap-1">
                             <button 
                                 onClick={() => setIsAddModalOpen(true)}
-                                className="bg-white text-slate-600 p-2 rounded-xl font-bold text-[10px] hover:bg-slate-50 border border-slate-200 shadow-sm transition-all flex items-center gap-1.5"
+                                className="bg-white text-slate-600 px-2 py-1.5 rounded-lg font-bold text-[9px] hover:bg-slate-50 border border-slate-200 shadow-sm transition-all flex items-center gap-1"
                                 title="Add Custom Item"
                             >
-                                <Plus size={14} />
+                                <Plus size={12} />
                                 <span>Custom</span>
                             </button>
                             <button 
                                 onClick={() => fileInputRef.current?.click()}
-                                className="bg-white text-slate-600 p-2 rounded-xl font-bold text-[10px] hover:bg-slate-50 border border-slate-200 shadow-sm transition-all flex items-center gap-1.5"
+                                className="bg-white text-slate-600 px-2 py-1.5 rounded-lg font-bold text-[9px] hover:bg-slate-50 border border-slate-200 shadow-sm transition-all flex items-center gap-1"
                                 title="Import CSV"
                             >
-                                <Copy size={14} />
+                                <Copy size={12} />
                                 <span>CSV</span>
                             </button>
                         </div>
@@ -412,7 +412,7 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
                  <button
                    key={cat}
                    onClick={() => setActiveCategory(cat)}
-                   className={`px-6 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-all ${
+                   className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest whitespace-nowrap transition-all ${
                      activeCategory === cat 
                        ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' 
                        : 'bg-white text-slate-400 border border-slate-100 hover:bg-slate-50'
@@ -425,7 +425,7 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
         </div>
       
         {/* Product List */}
-        <div className="mt-2 px-4 space-y-4">
+        <div className="mt-1 px-3 space-y-3">
             {filteredSkus.length > 0 ? (
                 filteredSkus.map(sku => {
                     const entry = stockData.get(sku.id) || { batches: [] };
@@ -437,42 +437,42 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
                         <div 
                             key={sku.id} 
                             id={`sku-${sku.id}`}
-                            className={`bg-white transition-all ${expiryEnabled ? 'rounded-[2rem] border' : 'rounded-2xl border-b border-slate-100'} ${
+                            className={`bg-white transition-all ${expiryEnabled ? 'rounded-[1.5rem] border' : 'rounded-xl border-b border-slate-100'} ${
                                 hasError ? 'border-red-500 ring-2 ring-red-100' : 
                                 totalSkuQty > 0 ? 'border-indigo-200 shadow-md ring-1 ring-indigo-50' : 
                                 'border-slate-100 shadow-sm'
                             }`}
                         >
                             {/* SKU Header */}
-                            <div className={expiryEnabled ? "p-5" : "p-4"}>
+                            <div className={expiryEnabled ? "p-2 sm:p-3" : "p-2"}>
                                 <div className={`flex ${expiryEnabled ? 'items-start' : 'items-center'} justify-between gap-2`}>
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
-                                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest flex-shrink-0">{sku.id}</span>
-                                            <span className={`text-[7px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-tighter flex-shrink-0 ${sku.type === 'Professional' ? 'bg-slate-800 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
+                                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mb-0.5">
+                                            <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest flex-shrink-0">{sku.id}</span>
+                                            <span className={`text-[6px] font-bold px-1 py-0.5 rounded-full uppercase tracking-tighter flex-shrink-0 ${sku.type === 'Professional' ? 'bg-slate-800 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
                                                 {sku.type}
                                             </span>
                                         </div>
                                         {hasError && (
-                                            <div className="mb-1.5">
-                                                <span className="inline-flex items-center gap-1 text-[7px] font-bold text-red-500 uppercase bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
-                                                    <AlertCircle size={10} />
+                                            <div className="mb-1">
+                                                <span className="inline-flex items-center gap-1 text-[6px] font-bold text-red-500 uppercase bg-red-50 px-1.5 py-0.5 rounded-full border border-red-100">
+                                                    <AlertCircle size={8} />
                                                     Expiry Missing
                                                 </span>
                                             </div>
                                         )}
-                                        <h4 className={`${expiryEnabled ? 'text-sm' : 'text-xs'} font-bold text-slate-800 leading-tight line-clamp-2`}>{sku.name}</h4>
+                                        <h4 className={`${expiryEnabled ? 'text-xs' : 'text-[11px]'} font-bold text-slate-800 leading-tight line-clamp-2`}>{sku.name}</h4>
                                     </div>
                                     
                                     {!expiryEnabled ? (
                                         <div className="w-32 flex-shrink-0 ml-2">
                                             {(entry.batches.length > 0 ? [entry.batches[0]] : [{qty: 0, expiryDate: ''}]).map((batch, idx) => (
-                                                <div key={idx} className="flex items-center bg-slate-50 border border-slate-200 rounded-xl overflow-hidden h-10">
+                                                <div key={idx} className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden h-8">
                                                     <button 
                                                         onClick={() => handleQtyChange(sku.id, idx, String(Math.max(0, (batch.qty || 0) - 1)))}
-                                                        className="px-3 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors h-full"
+                                                        className="px-2 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors h-full"
                                                     >
-                                                        <Minus size={14} />
+                                                        <Minus size={12} />
                                                     </button>
                                                     <input 
                                                         type="number"
@@ -480,39 +480,39 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
                                                         value={batch.qty || ''}
                                                         onChange={(e) => handleQtyChange(sku.id, idx, e.target.value)}
                                                         placeholder="0"
-                                                        className="w-full bg-transparent text-sm font-bold focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                        className="w-full bg-transparent text-xs font-bold focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                     />
                                                     <button 
                                                         onClick={() => handleQtyChange(sku.id, idx, String((batch.qty || 0) + 1))}
-                                                        className="px-3 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors h-full"
+                                                        className="px-2 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors h-full"
                                                     >
-                                                        <Plus size={14} />
+                                                        <Plus size={12} />
                                                     </button>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+                                        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                                             {totalSkuQty > 0 && (
-                                                <div className="flex flex-col items-center min-w-[40px]">
-                                                    <span className="text-xl font-bold text-indigo-600 leading-none">{totalSkuQty}</span>
-                                                    <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mt-1 whitespace-nowrap">Total Units</span>
+                                                <div className="flex flex-col items-center min-w-[35px]">
+                                                    <span className="text-lg font-bold text-indigo-600 leading-none">{totalSkuQty}</span>
+                                                    <span className="text-[6px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 whitespace-nowrap">Units</span>
                                                 </div>
                                             )}
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-1.5">
                                                 <button 
                                                     onClick={() => addBatch(sku.id)}
-                                                    className="p-2.5 bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all border border-slate-100"
+                                                    className="p-2 bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all border border-slate-100"
                                                     title="Add Batch"
                                                 >
-                                                    <Plus size={18} />
+                                                    <Plus size={14} />
                                                 </button>
                                                 {entry.batches.length > 0 && (
                                                     <button 
                                                         onClick={() => toggleExpand(sku.id)}
-                                                        className="p-2.5 bg-slate-50 text-slate-400 hover:bg-slate-100 rounded-xl transition-all border border-slate-100"
+                                                        className="p-2 bg-slate-50 text-slate-400 hover:bg-slate-100 rounded-lg transition-all border border-slate-100"
                                                     >
-                                                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                                                        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                                                     </button>
                                                 )}
                                             </div>
@@ -523,28 +523,28 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
 
                             {/* Batches List (Only for Expiry Mode) */}
                             {expiryEnabled && (isExpanded || entry.batches.length > 0) && (
-                                <div className={`px-5 pb-5 space-y-3 ${!isExpanded && 'hidden'}`}>
-                                    <div className="h-px bg-slate-100 mb-4"></div>
+                                <div className={`px-3 pb-3 space-y-2 ${!isExpanded && 'hidden'}`}>
+                                    <div className="h-px bg-slate-100 mb-2"></div>
                                     {entry.batches.map((batch, idx) => {
                                         const status = getExpiryStatus(batch.expiryDate);
                                         return (
-                                            <div key={idx} className="flex flex-wrap sm:flex-nowrap items-end gap-3 animate-slide-up">
-                                                <div className="flex-1 min-w-[120px]">
-                                                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Expiry Date</label>
+                                            <div key={idx} className="flex flex-wrap sm:flex-nowrap items-end gap-2 animate-slide-up">
+                                                <div className="flex-1 min-w-[100px]">
+                                                    <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Expiry</label>
                                                     <ModernDatePicker 
                                                         selected={batch.expiryDate ? parseISO(batch.expiryDate) : null}
                                                         onChange={(date) => updateBatch(sku.id, idx, { expiryDate: date ? format(date, 'yyyy-MM-dd') : '' })}
                                                         error={status === 'expired' || status === 'critical'}
                                                     />
                                                 </div>
-                                                <div className="w-32">
-                                                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Quantity</label>
-                                                    <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
+                                                <div className="w-28">
+                                                    <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Qty</label>
+                                                    <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
                                                         <button 
                                                             onClick={() => handleQtyChange(sku.id, idx, String(Math.max(0, (batch.qty || 0) - 1)))}
-                                                            className="px-4 py-3 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                                                            className="px-2 py-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
                                                         >
-                                                            <Minus size={18} />
+                                                            <Minus size={14} />
                                                         </button>
                                                         <input 
                                                             type="number"
@@ -552,27 +552,27 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
                                                             value={batch.qty || ''}
                                                             onChange={(e) => handleQtyChange(sku.id, idx, e.target.value)}
                                                             placeholder="0"
-                                                            className="w-full bg-transparent py-3 text-base font-bold focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                            className="w-full bg-transparent py-1.5 text-sm font-bold focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                         />
                                                         <button 
                                                             onClick={() => handleQtyChange(sku.id, idx, String((batch.qty || 0) + 1))}
-                                                            className="px-4 py-3 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                                                            className="px-2 py-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
                                                         >
-                                                            <Plus size={18} />
+                                                            <Plus size={14} />
                                                         </button>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2 pb-1">
+                                                <div className="flex items-center gap-1.5 pb-0.5">
                                                     {status && (
-                                                        <div className={`px-3 py-1.5 rounded-xl text-[8px] font-bold uppercase tracking-widest border ${getStatusStyles(status)}`}>
+                                                        <div className={`px-2 py-1 rounded-lg text-[7px] font-bold uppercase tracking-widest border ${getStatusStyles(status)}`}>
                                                             {status}
                                                         </div>
                                                     )}
                                                     <button 
                                                         onClick={() => removeBatch(sku.id, idx)}
-                                                        className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                                        className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                                                     >
-                                                        <Trash2 size={16} />
+                                                        <Trash2 size={14} />
                                                     </button>
                                                 </div>
                                             </div>
@@ -606,41 +606,41 @@ export const StockEntryList: React.FC<StockEntryListProps> = ({ initialStockData
         </div>
 
         {/* Bottom Action Bar - Frozen Panel */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-20px_50px_-20px_rgba(0,0,0,0.2)] z-50">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.1)] z-50">
            <div className="max-w-4xl mx-auto">
              {/* Branding & Status Bar (Matches Screenshot) */}
-             <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-white">
-                <div className="flex items-center gap-2">
-                    <div className="bg-indigo-600 p-1.5 rounded-lg text-white">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+             <div className="flex items-center justify-between px-4 py-1.5 border-b border-slate-100 bg-white">
+                <div className="flex items-center gap-1.5">
+                    <div className="bg-indigo-600 p-1 rounded-md text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                         </svg>
                     </div>
-                    <h1 className="text-[11px] font-bold text-slate-800 tracking-tight uppercase">Brillare- Retail SOH</h1>
+                    <h1 className="text-[9px] font-bold text-slate-800 tracking-tight uppercase">Brillare SOH</h1>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Live Entry</span>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Live</span>
                     </div>
-                    <div className="bg-indigo-50 px-2.5 py-1 rounded-xl text-center border border-indigo-100">
-                        <span className="text-[10px] font-bold text-indigo-600 leading-none">{itemsFilled} SKUs</span>
+                    <div className="bg-indigo-50 px-2 py-0.5 rounded-lg text-center border border-indigo-100">
+                        <span className="text-[9px] font-bold text-indigo-600 leading-none">{itemsFilled} SKUs</span>
                     </div>
                 </div>
              </div>
 
              {/* Main Action Bar */}
-             <div className="p-4 sm:p-6 flex gap-4 items-center bg-slate-50/30 backdrop-blur-md">
+             <div className="px-4 py-3 flex gap-3 items-center bg-slate-50/30 backdrop-blur-md">
                 <div className="flex-1">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total Units</p>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total Units</p>
                     <div className="flex items-baseline gap-1">
-                        <p className="text-2xl font-bold text-slate-900 leading-none">{totalItems}</p>
-                        <span className="text-[9px] font-bold text-indigo-500 uppercase">Qty</span>
+                        <p className="text-xl font-bold text-slate-900 leading-none">{totalItems}</p>
+                        <span className="text-[8px] font-bold text-indigo-500 uppercase">Qty</span>
                     </div>
                 </div>
-                <div className="flex-[2]">
+                <div className="flex-[2.5]">
                     <Button 
-                        className="w-full py-4 text-sm sm:text-base shadow-2xl shadow-indigo-200/50 font-bold uppercase tracking-widest"
+                        className="w-full py-3 text-sm shadow-xl shadow-indigo-200/40 font-bold uppercase tracking-widest"
                          onClick={() => {
                             // Validation: All batches with qty > 0 must have expiry date
                             if (expiryEnabled) {
