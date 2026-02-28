@@ -354,7 +354,11 @@ const App: React.FC = () => {
           );
 
       case 'DASHBOARD':
-        return bdeInfo ? (
+        if (!bdeInfo) {
+            setStep('BDE_LOGIN');
+            return null;
+        }
+        return (
             <Dashboard 
                 bdeInfo={bdeInfo} 
                 sessionAudits={sessionAudits}
@@ -365,20 +369,28 @@ const App: React.FC = () => {
                 onDeleteAudit={handleDeleteSessionAudit}
                 onImportAudit={handleImportAudit}
             />
-        ) : null;
+        );
 
       case 'STORE_SELECT':
-        return bdeInfo ? (
+        if (!bdeInfo) {
+            setStep('BDE_LOGIN');
+            return null;
+        }
+        return (
             <StoreSelection 
                 bdeName={bdeInfo.bdeName}
                 onSelectStore={handleStoreSelect}
                 onBack={() => setStep('DASHBOARD')}
                 auditedStoreIds={auditedStoreIds}
             />
-        ) : null;
+        );
 
       case 'STOCK_ENTRY':
-        return currentStore ? (
+        if (!currentStore) {
+            setStep('DASHBOARD');
+            return null;
+        }
+        return (
             <StockEntryList 
                 initialStockData={stockData}
                 availableSkus={allSkus}
@@ -388,10 +400,14 @@ const App: React.FC = () => {
                 retailerName={currentStore.name}
                 expiryEnabled={appConfig?.expiryEnabled !== false}
             />
-        ) : null;
+        );
 
       case 'REVIEW_SINGLE':
-        return currentStore && bdeInfo ? (
+        if (!currentStore || !bdeInfo) {
+            setStep('DASHBOARD');
+            return null;
+        }
+        return (
             <StoreAuditReview 
                 store={currentStore}
                 stockData={stockData}
@@ -402,10 +418,14 @@ const App: React.FC = () => {
                 onHome={handleLogout}
                 expiryEnabled={appConfig?.expiryEnabled !== false}
             />
-        ) : null;
+        );
 
       case 'REVIEW_SESSION':
-        return bdeInfo ? (
+        if (!bdeInfo) {
+            setStep('BDE_LOGIN');
+            return null;
+        }
+        return (
             <ReviewAndExport 
                 bdeInfo={bdeInfo} 
                 sessionAudits={sessionAudits}
@@ -414,7 +434,7 @@ const App: React.FC = () => {
                 onContinueSession={() => setStep('DASHBOARD')}
                 onHome={handleLogout}
             />
-        ) : null;
+        );
 
       default:
         return (
@@ -428,7 +448,11 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
-      <Header />
+      <Header 
+        bdeInfo={bdeInfo} 
+        onLogout={handleLogout} 
+        isAdmin={step.startsWith('ADMIN')}
+      />
       <main className="max-w-4xl mx-auto p-4 sm:p-6 pb-20">
         {renderStep()}
       </main>
